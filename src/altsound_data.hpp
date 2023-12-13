@@ -9,6 +9,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Dave Roscoe
 // ---------------------------------------------------------------------------
+
 #ifndef ALTSOUND_DATA_H
 #define ALTSOUND_DATA_H
 #if !defined(__GNUC__) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4) || (__GNUC__ >= 4)	// GCC supports "pragma once" correctly since 3.4
@@ -21,13 +22,12 @@
  #endif
 #endif
 
-// Std Library includes
 #include <array>
 #include <bitset>
-#include <mutex>
 #include <unordered_map>
 #include <vector>
 
+#define ALT_MAX_CMDS 4
 #define BASS_NO_STREAM 0
 #define ALT_MAX_CHANNELS 16
 
@@ -37,9 +37,30 @@
 // Global Data Structures
 // ----------------------------------------------------------------------------
 
+typedef uint32_t DWORD;
+typedef uint32_t HSTREAM;
+typedef uint32_t HSYNC;
+
+typedef struct _cmd_data {
+  unsigned int cmd_counter;
+  int stored_command;
+  unsigned int cmd_filter;
+  unsigned int cmd_buffer[ALT_MAX_CMDS];
+} CmdData;
+
 struct _stream_info;  // forward declaration for clarity
 typedef _stream_info AltsoundStreamInfo;
 typedef std::array<AltsoundStreamInfo*, ALT_MAX_CHANNELS> StreamArray;
+
+enum AltsoundSampleType {
+	UNDEFINED = 0,
+	MUSIC,
+	JINGLE,
+	SFX,
+	CALLOUT,
+	SOLO,
+	OVERLAY
+};
 
 // Structure to hold information about active streams
 struct _stream_info {
@@ -53,16 +74,6 @@ struct _stream_info {
 	bool stop_music = false;
 	bool loop = false;
 	float gain = 1.0f;
-};
-
-enum AltsoundSampleType {
-	UNDEFINED = 0,
-	MUSIC,
-	JINGLE,
-	SFX,
-	CALLOUT,
-	SOLO,
-	OVERLAY
 };
 
 // Structure for storing G-Sound ducking profiles

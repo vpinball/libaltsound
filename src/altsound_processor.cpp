@@ -5,24 +5,13 @@
 // CSV and PinSound format
 // ---------------------------------------------------------------------------
 // license:BSD-3-Clause
-// copyright-holders: Dave Roscoe, Carsten Wächter
+// copyright-holders: Dave Roscoe, Carsten Wï¿½chter
 // ---------------------------------------------------------------------------
 
-#define NOMINMAX
-
 #include "altsound_processor.hpp"
-
-// Std Library includes
-#include <algorithm>
-#include <string>
-
-// Local includes
-#include "osdepend.h"
 #include "altsound_csv_parser.hpp"
 #include "altsound_file_parser.hpp"
 #include "altsound_logger.hpp"
-
-using std::string;
 
 // NOTE:
 // - SFX streams don't require tracking since multiple can play,
@@ -47,8 +36,8 @@ constexpr unsigned int UNSET_IDX = std::numeric_limits<unsigned int>::max();
 // CTOR/DTOR
 // ---------------------------------------------------------------------------
 
-AltsoundProcessor::AltsoundProcessor(const std::string& game_name_in,
-	                                 const std::string& vpm_path_in,
+AltsoundProcessor::AltsoundProcessor(const string& game_name_in,
+	                                 const string& vpm_path_in,
 	                                 const string& format_in)
 :AltsoundProcessorBase(game_name_in, vpm_path_in),
   format(format_in),
@@ -80,7 +69,7 @@ AltsoundProcessor::~AltsoundProcessor()
 bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::handleCmd()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_DEBUG(0, "Acquiring mutex");
 	std::lock_guard<std::mutex> guard(io_mutex);
@@ -96,7 +85,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 			ALT_ERROR(0, "AltsoundProcessor is unstable. Processing skipped");
 		}
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundProcessor::handleCmd()");
 		return false;
 	}
@@ -118,14 +107,14 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		// No matching command.  Clean up and exit
 		ALT_ERROR(0, "FAILED AltsoundProcessor::get_sample(%u)", cmd_combined_in);
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundProcessor::handleCmd()");
 		return false;
 	}
 
-	BOOL play_music = FALSE;
-	BOOL play_jingle = FALSE;
-	BOOL play_sfx = FALSE;
+	bool play_music = false;
+	bool play_jingle = false;
+	bool play_sfx = false;
 
 	AltsoundStreamInfo* new_stream = new AltsoundStreamInfo();
 	HSTREAM stream = BASS_NO_STREAM;
@@ -149,7 +138,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 			// update stream storage
 			channel_stream[new_stream->channel_idx] = new_stream;
 
-			play_jingle = TRUE; // Defer playback until the end
+			play_jingle = true; // Defer playback until the end
 			cur_jin_stream = new_stream;
 			stream = cur_jin_stream->hstream;
 		}
@@ -169,7 +158,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 			// update stream storage
 			channel_stream[new_stream->channel_idx] = new_stream;
 		   
-			play_music = TRUE; // Defer playback until the end
+			play_music = true; // Defer playback until the end
 			cur_mus_stream = new_stream;
 			stream = cur_mus_stream->hstream;
 		}
@@ -189,7 +178,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 			// update stream storage
 			channel_stream[new_stream->channel_idx] = new_stream;
 
-			play_sfx = TRUE;// Defer playback until the end
+			play_sfx = true;// Defer playback until the end
 			stream = new_stream->hstream;
 		}
 		else {
@@ -201,7 +190,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 	if (!play_music && !play_jingle && !play_sfx) {
 		ALT_ERROR(0, "FAILED AltsoundProcessor::alt_sound_handle()");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundProcessor::process_cmd()");
 		return false;
 	}
@@ -236,7 +225,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::handleCmd()");
 	return true;
 }
@@ -246,7 +235,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 void AltsoundProcessor::init()
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::init()");
-	OUTDENT;
+	ALT_OUTDENT;
 
 	// reset stream tracking
 	cur_mus_stream = nullptr;
@@ -256,7 +245,7 @@ void AltsoundProcessor::init()
 		ALT_ERROR(0, "FAILED AltsoundProcessor::loadSamples()");
 		is_initialized = false;
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundProcessor::init()");
 		return;
 	}
@@ -268,7 +257,7 @@ void AltsoundProcessor::init()
 	// Initialize base class
 	AltsoundProcessorBase::init();
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::init()");
 }
 
@@ -277,12 +266,11 @@ void AltsoundProcessor::init()
 bool AltsoundProcessor::loadSamples()
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::loadSamples()");
-	INDENT;
+	ALT_INDENT;
 
 	string altsound_path = vpm_path; // in base class
 	if (!altsound_path.empty()) {
-		altsound_path += "/altsound/";
-		altsound_path += game_name;
+		altsound_path += string() + "altsound/" + game_name + '/';
 	}
 
 	if (format == "altsound") {
@@ -291,7 +279,7 @@ bool AltsoundProcessor::loadSamples()
 		if (!csv_parser.parse(samples)) {
 			ALT_ERROR(0, "FAILED AltsoundCsvParser::parse()");
 
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END AltsoundProcessor::loadSamples()");
 			return false;
 		}
@@ -302,14 +290,14 @@ bool AltsoundProcessor::loadSamples()
 		if (!file_parser.parse(samples)) {
 			ALT_ERROR(0, "FAILED AltsoundFileParser::parse()");
 			
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END AltsoundProcessor::loadSamples");
 			return false;
 		}
 		ALT_INFO(0, "SUCCESS AltsoundFileParser::parse()");
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::loadSamples");
 	return true;
 }
@@ -319,7 +307,7 @@ bool AltsoundProcessor::loadSamples()
 unsigned int AltsoundProcessor::getSample(const unsigned int cmd_combined_in)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::getSample()");
-	INDENT;
+	ALT_INDENT;
 
 	unsigned int sample_idx = UNSET_IDX;
 
@@ -351,7 +339,7 @@ unsigned int AltsoundProcessor::getSample(const unsigned int cmd_combined_in)
 		ALT_WARNING(0, "FAILED No sample(s) found for ID: %04X", cmd_combined_in);
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::getSample()");
 	return sample_idx;
 }
@@ -361,7 +349,7 @@ unsigned int AltsoundProcessor::getSample(const unsigned int cmd_combined_in)
 bool AltsoundProcessor::process_music(AltsoundStreamInfo* stream_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::process_music()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = false;
 
@@ -389,7 +377,7 @@ bool AltsoundProcessor::process_music(AltsoundStreamInfo* stream_out)
 		ALT_ERROR(0, "FAILED AltsoundProcessor::stopMusicStream()");
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::process_music()");
 	return success;
 }
@@ -399,7 +387,7 @@ bool AltsoundProcessor::process_music(AltsoundStreamInfo* stream_out)
 bool AltsoundProcessor::process_jingle(AltsoundStreamInfo* stream_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::process_jingle()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = true;
 
@@ -434,7 +422,7 @@ bool AltsoundProcessor::process_jingle(AltsoundStreamInfo* stream_out)
 	}
 	
 	if (success) {
-		success = createStream(&jingle_callback, stream_out);
+		success = createStream((void*)&jingle_callback, stream_out);
 		if (success) {
 			success = setStreamVolume(stream_out->hstream, stream_out->gain);
 			if (!success) {
@@ -446,7 +434,7 @@ bool AltsoundProcessor::process_jingle(AltsoundStreamInfo* stream_out)
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::process_jingle()");
 	return success;
 }
@@ -456,10 +444,10 @@ bool AltsoundProcessor::process_jingle(AltsoundStreamInfo* stream_out)
 bool AltsoundProcessor::process_sfx(AltsoundStreamInfo* stream_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::process_sfx()");
-	INDENT;
+	ALT_INDENT;
 
 	// create new sfx stream
-	bool success = createStream(&sfx_callback, stream_out);
+	bool success = createStream((void*)&sfx_callback, stream_out);
 	if (success && !setStreamVolume(stream_out->hstream, stream_out->gain)) {
 		success = false;
 		ALT_WARNING(0, "FAILED AltsoundProcessorBase::setStreamVolume()");
@@ -468,7 +456,7 @@ bool AltsoundProcessor::process_sfx(AltsoundStreamInfo* stream_out)
 		ALT_ERROR(0, "FAILED AltsoundProcessorBase::createStream(): %s", get_bass_err());
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::process_sfx()");
 	return success;
 }
@@ -494,7 +482,7 @@ bool AltsoundProcessor::stopMusic()
 bool AltsoundProcessor::stopMusicStream()
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::stopMusicStream()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = true;
 
@@ -517,7 +505,7 @@ bool AltsoundProcessor::stopMusicStream()
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::stopMusicStream()");
 	return success;
 }
@@ -527,7 +515,7 @@ bool AltsoundProcessor::stopMusicStream()
 bool AltsoundProcessor::stopJingleStream()
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::stopJingleStream()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = false;
 
@@ -547,7 +535,7 @@ bool AltsoundProcessor::stopJingleStream()
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::stopJingleStream()");
 	return success;
 }
@@ -561,7 +549,7 @@ void CALLBACK AltsoundProcessor::jingle_callback(HSYNC handle, DWORD channel,\
 	// sync processes, so these should be fast.  The SYNCPROC thread is
 	// separate from the main thread so thread safety should be considered
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::jingle_callback()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_INFO(0, "HSYNC: %u  HSTREAM: %u", handle, channel);
 	ALT_DEBUG(0, "Acquiring mutex");
@@ -622,7 +610,7 @@ void CALLBACK AltsoundProcessor::jingle_callback(HSYNC handle, DWORD channel,\
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::jingle_callback()");
 }
 
@@ -635,7 +623,7 @@ void CALLBACK AltsoundProcessor::sfx_callback(HSYNC handle, DWORD channel,\
 	// sync processes, so these should be fast.  The SYNCPROC thread is
 	// separate from the main thread so thread safety should be considered
 	ALT_DEBUG(0, "BEGIN: AltsoundProcessor::sfx_callback()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_INFO(0, "HSYNC: %u  HSTREAM: %u", handle, channel);
 	ALT_DEBUG(0, "Acquiring mutex");
@@ -681,7 +669,7 @@ void CALLBACK AltsoundProcessor::sfx_callback(HSYNC handle, DWORD channel,\
 		setStreamVolume(mus_hstream, adj_mus_vol);
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END: AltsoundProcessor::sfx_callback()");
 }
 
@@ -694,7 +682,7 @@ void CALLBACK AltsoundProcessor::music_callback(HSYNC handle, DWORD channel,\
 	// sync processes, so these should be fast.  The SYNCPROC thread is
 	// separate from the main thread so thread safety should be considered
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::music_callback()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_INFO(0, "HSYNC: %u  HSTREAM: %u", handle, channel);
 	ALT_DEBUG(0, "Acquiring mutex");
@@ -731,7 +719,7 @@ void CALLBACK AltsoundProcessor::music_callback(HSYNC handle, DWORD channel,\
 	channel_stream[inst_ch_idx] = nullptr;
 	cur_mus_stream = nullptr;
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::music_callback()");
 }
 
@@ -740,7 +728,7 @@ void CALLBACK AltsoundProcessor::music_callback(HSYNC handle, DWORD channel,\
 float AltsoundProcessor::getMinDucking()
 {
 	ALT_DEBUG(0, "BEGIN: AltsoundProcessor::getMinDucking()");
-	INDENT;
+	ALT_INDENT;
 
 	float min_ducking = 1.0f;
 	int num_x_streams = 0;
@@ -768,7 +756,7 @@ float AltsoundProcessor::getMinDucking()
 	ALT_INFO(0, "Num active streams: %d", num_x_streams);
 	ALT_INFO(0, "Min ducking of all active channels: %.2f", min_ducking);
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END: AltsoundProcessor::getMinDucking()");
 	return min_ducking;
 }

@@ -4,17 +4,15 @@
 // Parser for Legacy format sample files and directories
 // ---------------------------------------------------------------------------
 // license:BSD-3-Clause
-// copyright-holders:Carsten Wächter, Dave Roscoe
+// copyright-holders:Carsten Wï¿½chter, Dave Roscoe
 // ---------------------------------------------------------------------------
 
 #include "altsound_file_parser.hpp"
-
-// Standard Library includes
-#include <iomanip>
-
-// local includes
-#include <dirent.h>
 #include "altsound_logger.hpp"
+
+#include <iomanip>
+#include <dirent.h>
+#include <sys/stat.h>
 
 extern AltsoundLogger alog;
 
@@ -22,9 +20,12 @@ extern AltsoundLogger alog;
 // CTOR/DTOR
 // ---------------------------------------------------------------------------
 
-AltsoundFileParser::AltsoundFileParser(const std::string& altsound_path_in)
+AltsoundFileParser::AltsoundFileParser(const string& altsound_path_in)
 	: altsound_path(altsound_path_in)
 {
+	if (!altsound_path_in.empty() && altsound_path_in.back() != '/') {
+		altsound_path += '/';
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -33,53 +34,53 @@ AltsoundFileParser::AltsoundFileParser(const std::string& altsound_path_in)
 // This support is for PinSound style of alternate sound mixes.
 // The files are split into directories according to the following:
 //
-// <ROM shortname>\
-//    music\
-//        <instruction1>-name\
+// <ROM shortname>/
+//    music/
+//        <instruction1>-name/
 //            <soundfile1>.wav(or .ogg)
 //            ...
-//        <instruction2>-name\
+//        <instruction2>-name/
 //        ...
-//    jingle\
-//        <instruction1>-name\
+//    jingle/
+//        <instruction1>-name/
 //            <soundfile1>.wav(or .ogg)
 //            ...
-//        <instruction2>-name\
+//        <instruction2>-name/
 //        ...
-//    sfx\
-//        <instruction1>-name\
+//    sfx/
+//        <instruction1>-name/
 //            <soundfile1>.wav(or .ogg)
 //            ...
-//        <instruction2>-name\
+//        <instruction2>-name/
 //        ...
-//    single\
-//        <instruction1>-name\
+//    single/
+//        <instruction1>-name/
 //            <soundfile1>.wav(or .ogg)
 //            ...
-//        <instruction2>-name\
+//        <instruction2>-name/
 //        ...
-//    voice\
-//        <instruction1>-name\
+//    voice/
+//        <instruction1>-name/
 //            <soundfile1>.wav(or .ogg)
 //            ...
-//        <instruction2>-name\
+//        <instruction2>-name/
 //        ...
 bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundFileParser::parse()");
-	INDENT;
+	ALT_INDENT;
 
-	const std::string path_jingle = "jingle/";
-	const std::string path_music = "music/";
-	const std::string path_sfx = "sfx/";
-	const std::string path_single = "single/";
-	const std::string path_voice = "voice/";
+	const string path_jingle = string("jingle") + '/';
+	const string path_music = string("music") + '/';
+	const string path_sfx = string("sfx") + '/';
+	const string path_single = string("single") + '/';
+	const string path_voice = string("voice") + '/';
 
 	for (int i = 0; i < 5; ++i) {
 		float default_gain = .1f;
 		float default_ducking = 1.f; //!! default depends on type??
 
-		const std::string subpath = (i == 0) ? path_jingle :
+		const string subpath = (i == 0) ? path_jingle :
 			((i == 1) ? path_music :
 			((i == 2) ? path_sfx :
 			((i == 3) ? path_single : path_voice)));
@@ -98,12 +99,12 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 		DIR *dir;
 		struct dirent *entry;
 
-		std::string PATH = altsound_path + '/' + subpath;
+		string PATH = altsound_path + subpath;
 		ALT_INFO(0, "Current_path1: %s", PATH.c_str());
 
 		// Check for new default gain
 		{
-		std::string PATHG = PATH + "gain.txt";
+		string PATHG = PATH + "gain.txt";
 		float parsedGain = parseFileValue(PATHG);
 		if (parsedGain != -1.0f) {
 			default_gain = parsedGain;
@@ -135,7 +136,7 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 				// Not a system file or txt file.  Assume it's a directory
 				// (per PinSound format requirements).  Backup the current
 				// directory stream and entry
-				const DIR backup_dir = *dir;
+				DIR* backup_dir = dir;
 				struct dirent backup_entry = *entry;
 
 				float gain = default_gain;
@@ -144,17 +145,17 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 				DIR *dir2;
 				struct dirent *entry2;
 
-				std::string PATH2 = PATH + entry->d_name;
+				string PATH2 = PATH + entry->d_name;
 
 				// Check for overriding gain value
-				std::string PATHG = PATH2 + '/' + "gain.txt";
+				string PATHG = PATH2 + "gain.txt";
 				float parsedGain = parseFileValue(PATHG);
 				if (parsedGain != -1.0f) {
 					gain = parsedGain;
 				}
 
 				// check for overriding ducking value
-				PATHG = PATH2 + '/' + "ducking.txt";
+				PATHG = PATH2 + "ducking.txt";
 				float parsedDucking = parseFileValue(PATHG);
 				if (parsedDucking != -1.0f) {
 					ducking = parsedDucking;
@@ -175,7 +176,7 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 
 						AltsoundSampleInfo sample;
 
-						sample.fname = PATH2 + '/' + entry2->d_name;
+						sample.fname = PATH2 + entry2->d_name;
 
 						memcpy(id, ptr + 1, 6);
 						sample.id = std::stoul(trim(id), nullptr);
@@ -225,7 +226,7 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 				}
 				closedir(dir2);
 
-				*dir = backup_dir;
+				dir = backup_dir;
 				*entry = backup_entry;
 			}
 			entry = readdir(dir);
@@ -234,14 +235,14 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 	}
 	ALT_INFO(0, "Found %d samples", samples_out.size());
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "BEGIN AltsoundFileParser::parse()");
 	return true;
 }
 
 // ----------------------------------------------------------------------------
 
-float AltsoundFileParser::parseFileValue(const std::string& filePath)
+float AltsoundFileParser::parseFileValue(const string& filePath)
 {
 	FILE *f = fopen(filePath.c_str(), "r");
 	if (!f) {

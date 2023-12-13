@@ -7,12 +7,12 @@
 // license:BSD-3-Clause
 // copyright-holders: Dave Roscoe
 // ---------------------------------------------------------------------------
+
 #include "altsound_processor_base.hpp"
-
-#include <chrono>
-#include <iomanip>
-
 #include "altsound_logger.hpp"
+
+#include <iomanip>
+#include <chrono>
 
 extern AltsoundLogger alog;
 extern StreamArray channel_stream;
@@ -35,6 +35,8 @@ extern bool rec_snd_cmds;
 	std::chrono::high_resolution_clock::time_point lastCmdTime;
 #endif
 
+#include "bass.h"
+
 // ---------------------------------------------------------------------------
 // CTOR/DTOR
 // ---------------------------------------------------------------------------
@@ -45,6 +47,9 @@ AltsoundProcessorBase::AltsoundProcessorBase(const std::string& _game_name,
   vpm_path(_vpm_path),
   skip_count(0)
 {
+	if (!vpm_path.empty() && vpm_path.back() != '/') {
+		vpm_path += '/';
+	}
 }
 
 AltsoundProcessorBase::~AltsoundProcessorBase()
@@ -119,7 +124,7 @@ bool AltsoundProcessorBase::startLogging(const std::string& gameName) {
 		return false;
 	}
 
-	std::string recording_fname = vpm_path + "/altsound/" + gameName+ "/cmdlog.txt";
+	std::string recording_fname = vpm_path + "altsound/cmdlog.txt";
 	logFile.open(recording_fname);
 	if (!logFile.is_open()) {
 		ALT_ERROR(1, "Failed to open log file: %s", recording_fname.c_str());
@@ -129,7 +134,7 @@ bool AltsoundProcessorBase::startLogging(const std::string& gameName) {
 
 	ALT_INFO(1, "Creating sound command log: %s", recording_fname.c_str());
 
-	std::string game_altsound_path = vpm_path + "/altsound/" + gameName;
+	std::string game_altsound_path = vpm_path + "altsound/" + gameName + '/';
 
 	// Check if game_altsound_path is valid
 	if (!dir_exists(game_altsound_path)) {
@@ -139,6 +144,8 @@ bool AltsoundProcessorBase::startLogging(const std::string& gameName) {
 	}
 
 	logFile << "altsound_path: " << game_altsound_path << std::endl;
+    logFile << "hardware_gen: 0x" << 0 << std::endl;
+
 	lastCmdTime = std::chrono::high_resolution_clock::now();
 
 	ALT_DEBUG(0, "END startLogging()");
@@ -151,20 +158,20 @@ bool AltsoundProcessorBase::startLogging(const std::string& gameName) {
 bool AltsoundProcessorBase::findFreeChannel(unsigned int& channel_out)
 {
 	ALT_INFO(0, "BEGIN: AltsoundProcessorBase::findFreeChannel()");
-	INDENT;
+	ALT_INDENT;
 
 	const auto it = std::find(channel_stream.begin(), channel_stream.end(), nullptr);
 	if (it != channel_stream.end()) {
 		channel_out = static_cast<unsigned int>(std::distance(channel_stream.begin(), it));
 		ALT_INFO(1, "Found free channel: %02u", channel_out);
 		
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: AltsoundProcessorBase::findFreeChannel()");
 		return true;
 	}
 	ALT_ERROR(1, "No free channels available!");
 	
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessorBase::findFreeChannel()");
 	return false;
 }
@@ -174,7 +181,7 @@ bool AltsoundProcessorBase::findFreeChannel(unsigned int& channel_out)
 bool AltsoundProcessorBase::setStreamVolume(HSTREAM stream_in, const float vol_in)
 {
 	ALT_DEBUG(0, "BEGIN: AltsoundProcessorBase::setVolume()");
-	INDENT;
+	ALT_INDENT;
 
 	if (stream_in == BASS_NO_STREAM)
 		return true;
@@ -192,7 +199,7 @@ bool AltsoundProcessorBase::setStreamVolume(HSTREAM stream_in, const float vol_i
 		ALT_INFO(1, "SUCCESS BASS_ChannelSetAttribute(BASS_ATTRIB_VOL)");
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END: AltsoundProcessorBase::setVolume()");
 	return success;
 }
@@ -202,7 +209,7 @@ bool AltsoundProcessorBase::setStreamVolume(HSTREAM stream_in, const float vol_i
 bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* stream_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessorBase::createStream()");
-	INDENT;
+	ALT_INDENT;
 
 	const std::string short_path = getShortPath(stream_out->sample_path);
 	unsigned int ch_idx;
@@ -210,7 +217,7 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 	if (!ALT_CALL(findFreeChannel(ch_idx))) {
 		ALT_ERROR(1, "FAILED AltsoundProcessorBase::findFreeChannel()");
 		
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundProcessorBase::createStream()");
 		return false;
 	}
@@ -225,13 +232,13 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 		// Failed to create stream
 		ALT_ERROR(1, "FAILED BASS_StreamCreateFile(%s): %s", short_path.c_str(), get_bass_err());
 		
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: AltsoundProcessorBase::createStream()");
 		return false;
 	}
 
 	// Set callback to execute when sample playback ends
-	SYNCPROC* callback = static_cast<SYNCPROC*>(syncproc_in);
+	SYNCPROC* callback = reinterpret_cast<SYNCPROC*>(syncproc_in);
 	HSYNC hsync = 0;
 
 	if (callback) {
@@ -243,7 +250,7 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 			ALT_ERROR(1, "FAILED BASS_ChannelSetSync(): STREAM: %u ERROR: %s", hstream, get_bass_err());
 			freeStream(hstream);
 			
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END: AltsoundProcessorBase::createStream()");
 			return false;
 		}
@@ -253,7 +260,7 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 	stream_out->hstream = hstream; // store hstream
 	stream_out->hsync = hsync; // store hsync
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END: AltsoundProcessorBase::createStream()");
 	return true;
 }
@@ -263,7 +270,7 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 bool AltsoundProcessorBase::freeStream(const HSTREAM hstream_in)
 {
 	ALT_INFO(0, "BEGIN AltsoundProcessorBase::freeStream()");
-	INDENT;
+	ALT_INDENT;
 
 	const bool success = BASS_StreamFree(hstream_in) != 0;
 	if (!success) {
@@ -273,7 +280,7 @@ bool AltsoundProcessorBase::freeStream(const HSTREAM hstream_in)
 		ALT_INFO(1, "Successfully free'd stream(%u)", hstream_in);
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessorBase::freeStream()");
 	return success;
 }
@@ -283,7 +290,7 @@ bool AltsoundProcessorBase::freeStream(const HSTREAM hstream_in)
 bool AltsoundProcessorBase::stopStream(HSTREAM hstream_in)
 {
 	ALT_DEBUG(0, "BEGIN: AltsoundProcessorBase::stopStream()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = false;
 
@@ -302,7 +309,7 @@ bool AltsoundProcessorBase::stopStream(HSTREAM hstream_in)
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END: AltsoundProcessorBase::stopStream()");
 	return success;
 }
@@ -312,7 +319,7 @@ bool AltsoundProcessorBase::stopStream(HSTREAM hstream_in)
 bool AltsoundProcessorBase::stopAllStreams()
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessorBase::stopAllStreams()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = true;
 

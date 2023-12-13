@@ -20,12 +20,9 @@
  #endif
 #endif
 
-// Library includes
-#include <mutex>
-
-// Local includes
 #include "altsound_data.hpp"
-#include "../../ext/bass/bass.h"
+
+using std::string;
 
 // ---------------------------------------------------------------------------
 // AltsoundProcessorBase class definition
@@ -41,7 +38,7 @@ public:
 	AltsoundProcessorBase(AltsoundProcessorBase&) = delete;
 
 	// Standard Constructor
-	AltsoundProcessorBase(const std::string& game_name, const std::string& vpm_path);
+	AltsoundProcessorBase(const string& game_name, const string& vpm_path);
 
 	// Destructor
 	virtual ~AltsoundProcessorBase();
@@ -88,7 +85,7 @@ protected: // functions
 	bool createStream(void* syncproc_in, AltsoundStreamInfo* stream_out);
 
 	// get short path of current game <gamename>/subpath/filename
-	std::string getShortPath(const std::string& path_in);
+	string getShortPath(const string& path_in);
 
 	// stop playback on all active streams
 	bool stopAllStreams();
@@ -106,18 +103,18 @@ protected: // functions
 	static bool setStreamVolume(HSTREAM stream_in, const float vol_in);
 
 	// Return ROM shortname
-	const std::string& getGameName();
+	const string& getGameName();
 
 	// Return path to VPinMAME
-	const std::string& getVpmPath();
+	const string& getVpmPath();
 
 	// Initialize log file
-	bool startLogging(const std::string& gameName);
+	bool startLogging(const string& gameName);
 
 protected: // data
 	
-	std::string game_name;
-	std::string vpm_path;
+	string game_name;
+	string vpm_path;
 
 private: // functions
 
@@ -134,13 +131,13 @@ private: // data
 // Inline functions
 // ----------------------------------------------------------------------------
 
-inline const std::string& AltsoundProcessorBase::getGameName() {
+inline const string& AltsoundProcessorBase::getGameName() {
 	return game_name;
 }
 
 // ----------------------------------------------------------------------------
 
-inline const std::string& AltsoundProcessorBase::getVpmPath() {
+inline const string& AltsoundProcessorBase::getVpmPath() {
 	return vpm_path;
 }
 

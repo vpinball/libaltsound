@@ -10,26 +10,12 @@
 
 #define NOMINMAX
 #include "gsound_processor.hpp"
-
-// Standard Library includes
-#include <algorithm>
-#include <cctype>
-#include <chrono>
-#include <fstream>
-#include <iomanip>
-#include <limits>
-#include <map>
-#include <numeric>
-#include <sstream>
-#include <string>
-
-// Local includes
 #include "gsound_csv_parser.hpp"
 
-using std::string;
-using std::vector;
+#include <map>
 
-// reference to global AltSound logger
+#include "bass.h"
+
 extern AltsoundLogger alog;
 
 // DAR@20230721
@@ -175,7 +161,7 @@ std::unordered_map<AltsoundSampleType, BehaviorInfo*> behavior_map = {
 // CTOR/DTOR
 // ---------------------------------------------------------------------------
 
-GSoundProcessor::GSoundProcessor(const std::string& _game_name, const std::string& _vpm_path)
+GSoundProcessor::GSoundProcessor(const string& _game_name, const string& _vpm_path)
 : AltsoundProcessorBase(_game_name, _vpm_path),
   is_initialized(false),
   is_stable(true), // future use
@@ -201,7 +187,7 @@ GSoundProcessor::~GSoundProcessor()
 bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::handleCmd()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_DEBUG(1, "Acquiring mutex");
 	std::lock_guard<std::mutex> guard(io_mutex);
@@ -217,7 +203,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 			ALT_ERROR(1, "GSoundProcessor is unstable. Processing skipped");
 		}
 		
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: GSoundProcessor::handleCmd()");
 		return false;
 	}
@@ -245,7 +231,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		// No matching command.  Clean up and exit
 		ALT_ERROR(1, "FAILED GSoundProcessor::get_sample()", cmd_combined_in);
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 		return false;
 	}
@@ -270,7 +256,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processMusic()");
 			
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
@@ -283,7 +269,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processSfx()");
 			
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
@@ -297,7 +283,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processCallout()");
 			
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
@@ -311,7 +297,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		else {
 			ALT_ERROR(1,"FAILED GSoundProcessor::processSolo()");
 
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
@@ -325,18 +311,20 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processOverlay()");
 			
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
 		break;
+     default:
+        break;
 	}
 
 	// set volume for active streams
 	ALT_CALL(adjustStreamVolumes());
 
 	// Play pending sound determined above, if any
-	const std::string shortPathStr = getShortPath(new_stream->sample_path);
+	const string shortPathStr = getShortPath(new_stream->sample_path);
 	const char* sample_short_path = shortPathStr.c_str();
 	const char* stream_type_str = toString(new_stream->stream_type);
 
@@ -349,7 +337,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 			// Sound playback failed
 			ALT_ERROR(2, "FAILED %s stream playback: %s", stream_type_str, get_bass_err());
 
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
@@ -358,7 +346,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 	return true;
 }
@@ -368,7 +356,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 void GSoundProcessor::init()
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::init()");
-	INDENT;
+	ALT_INDENT;
 
 	// reset stream tracking variables
 	cur_mus_stream_idx = UNSET_IDX;
@@ -394,7 +382,7 @@ void GSoundProcessor::init()
 	// Initialize base class
 	AltsoundProcessorBase::init();
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::init()");
 }
 
@@ -403,13 +391,13 @@ void GSoundProcessor::init()
 bool GSoundProcessor::loadSamples()
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::loadSamples()");
-	INDENT;
+	ALT_INDENT;
 
 	// DAR_TODO make vpm_path and game_name private w/accessors?
 	string altsound_path = vpm_path; // in base class
+
 	if (!altsound_path.empty()) {
-		altsound_path += "/altsound/";
-		altsound_path += game_name;
+		altsound_path += string() + "altsound/" + game_name + '/';
 	}
 
 	GSoundCsvParser csv_parser(altsound_path);
@@ -417,13 +405,13 @@ bool GSoundProcessor::loadSamples()
 	if (!csv_parser.parse(samples)) {
 		ALT_ERROR(1, "FAILED GSoundCsvParser::parse()");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::init()");
 		return false;
 	}
 	ALT_INFO(1, "SUCCESS GSoundCsvParser::parse()");
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::init()");
 	return true;
 }
@@ -433,7 +421,7 @@ bool GSoundProcessor::loadSamples()
 unsigned int GSoundProcessor::getSample(const unsigned int cmd_combined_in)
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::getSample()");
-	INDENT;
+	ALT_INDENT;
 
 	int matching_sample_count = 0;
 	unsigned int sample_idx = UNSET_IDX;
@@ -463,7 +451,7 @@ unsigned int GSoundProcessor::getSample(const unsigned int cmd_combined_in)
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::getSample()");
 	return sample_idx;
 }
@@ -474,15 +462,15 @@ bool GSoundProcessor::processStream(const BehaviorInfo& behavior,
 	                                AltsoundStreamInfo* stream_out)
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::processStream()");
-	INDENT;
+	ALT_INDENT;
 
 	// create new stream
-	bool success = ALT_CALL(createStream(&common_callback, stream_out));
+	bool success = ALT_CALL(createStream((void*)&common_callback, stream_out));
 
 	if (!success) {
 		ALT_ERROR(0, "FAILED AltsoundProcessorBase::createStream()");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::processStream()");
 		return success;
 	}
@@ -494,7 +482,7 @@ bool GSoundProcessor::processStream(const BehaviorInfo& behavior,
 		ALT_ERROR(0, "FAILED: GSoundProcessor::processBehaviors()");
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::processStream()");
 	return success;
 }
@@ -517,7 +505,7 @@ bool GSoundProcessor::processStream(const BehaviorInfo& behavior,
 bool GSoundProcessor::processBehaviors(const BehaviorInfo& behavior, const AltsoundStreamInfo* stream)
 {
 	ALT_DEBUG(0, "BEGIN: GSoundProcessor::processBehaviors()");
-	INDENT;
+	ALT_INDENT;
 
 	// Syntactic sugar for accessing bitset values
 	using BB = BehaviorInfo::BehaviorBits;
@@ -540,7 +528,7 @@ bool GSoundProcessor::processBehaviors(const BehaviorInfo& behavior, const Altso
 			if (!stopExclusiveStream(sampleType)) {
 				ALT_ERROR(1, "FAILED GSoundProcessor::stopExclusicStream(%s)", toString(sampleType));
 
-				OUTDENT;
+				ALT_OUTDENT;
 				ALT_DEBUG(0, "END GSoundProcessor::processBehaviors()");
 				return false;
 			}
@@ -557,7 +545,7 @@ bool GSoundProcessor::processBehaviors(const BehaviorInfo& behavior, const Altso
 					if (!BASS_ChannelPause(hstream)) {
 						ALT_ERROR(1, "FAILED BASS_ChannelPause(): %s", get_bass_err());
 
-						OUTDENT;
+						ALT_OUTDENT;
 						ALT_DEBUG(0, "END GSoundProcessor::processMusicImpacts()");
 						return false;
 					}
@@ -603,7 +591,7 @@ bool GSoundProcessor::processBehaviors(const BehaviorInfo& behavior, const Altso
 	// DEBUG helper
 	printBehaviorData();
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::processBehaviors()");
 	return true;
 }
@@ -617,7 +605,7 @@ bool GSoundProcessor::postProcessBehaviors(const BehaviorInfo& behavior,
 	                                       const AltsoundStreamInfo& finished_stream)
 {
 	ALT_DEBUG(0, "BEGIN: GSoundProcessor::postProcessBehaviors()");
-	INDENT;
+	ALT_INDENT;
 
 	// Syntactic sugar for accessing bitset values
 	using BB = BehaviorInfo::BehaviorBits;
@@ -674,7 +662,7 @@ bool GSoundProcessor::postProcessBehaviors(const BehaviorInfo& behavior,
 	// DEBUG helper
 	printBehaviorData();
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::postProcessBehaviors()");
 	return true;
 }
@@ -687,13 +675,13 @@ bool GSoundProcessor::postProcessBehaviors(const BehaviorInfo& behavior,
 bool GSoundProcessor::stopMusic()
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::stopMusic()");
-	INDENT;
+	ALT_INDENT;
 
 	//DAR_TODO add error checking
 	if (!stopExclusiveStream(MUSIC)) {
 		ALT_ERROR(1, "FAILED GSoundProcessor::stopMusicStream()");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::stopMusic()");
 		return false;
 	}
@@ -704,7 +692,7 @@ bool GSoundProcessor::stopMusic()
 	// update paused streams
 	processPausedStreams();
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::stopMusic()");
 	return true;
 }
@@ -722,7 +710,7 @@ bool GSoundProcessor::stopMusic()
 bool GSoundProcessor::stopExclusiveStream(const AltsoundSampleType stream_type)
 {
 	ALT_DEBUG(0, "BEGIN: GSoundProcessor::stopExclusiveStream()");
-	INDENT;
+	ALT_INDENT;
 
 	// Get the current stream index for the sample type
 	unsigned int* cur_stream_idx = tracked_stream_idx_map[stream_type];
@@ -730,7 +718,7 @@ bool GSoundProcessor::stopExclusiveStream(const AltsoundSampleType stream_type)
 	if (*cur_stream_idx == UNSET_IDX) {
 		ALT_INFO(1, "No active %s stream", toString(stream_type));
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: GSoundProcessor::stopExclusiveStream()");
 		return true;
 	}
@@ -760,7 +748,7 @@ bool GSoundProcessor::stopExclusiveStream(const AltsoundSampleType stream_type)
 		return false;
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END: GSoundProcessor::stopExclusiveStream()");
 	return true;
 }
@@ -770,7 +758,7 @@ bool GSoundProcessor::stopExclusiveStream(const AltsoundSampleType stream_type)
 void CALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWORD data, void* user)
 {
 	ALT_DEBUG(0, "\nBEGIN: GSoundProcessor::common_callback()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_INFO(1, "HSYNC: %u  HSTREAM: %u", handle, channel);
 	ALT_DEBUG(1, "Acquiring mutex");
@@ -783,7 +771,7 @@ void CALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWOR
 	if (inst_hstream != hstream_in) {
 		ALT_ERROR(1, "Callback HSTREAM != instance HSTREAM");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::common_callback()");
 		return;
 	}
@@ -825,7 +813,7 @@ void CALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWOR
 	default:
 		ALT_ERROR(1, "Unknown stream type");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::common_callback()");
 		return;
 	}
@@ -851,7 +839,7 @@ void CALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWOR
 
 	ALT_INFO(1, "%s stream(%u) finished on ch(%02d)", toString(stream_type), inst_hstream, inst_ch_idx);
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::common_callback()");
 }
 
@@ -860,7 +848,7 @@ void CALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWOR
 bool GSoundProcessor::adjustStreamVolumes()
 {
 	ALT_INFO(0, "BEGIN GSoundProcessor::adjustStreamVolumes()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = true;
 	int num_x_streams = 0;
@@ -910,7 +898,7 @@ bool GSoundProcessor::adjustStreamVolumes()
 
 	ALT_INFO(1, "Num active streams: %d", num_x_streams);
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::adjustStreamVolumes()");
 	return success;
 }
@@ -921,7 +909,7 @@ bool GSoundProcessor::adjustStreamVolumes()
 bool GSoundProcessor::processPausedStreams()
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::processPausedStreams()");
-	INDENT;
+	ALT_INDENT;
 
 	bool success = true;
 	for (const auto* stream : channel_stream) {
@@ -930,7 +918,7 @@ bool GSoundProcessor::processPausedStreams()
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::processPausedStreams()");
 	return success;
 }
@@ -940,7 +928,7 @@ bool GSoundProcessor::processPausedStreams()
 bool GSoundProcessor::tryResumeStream(const AltsoundStreamInfo& stream)
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::tryResumeStream()");
-	INDENT;
+	ALT_INDENT;
 
 	// Find the pause map for the stream type
 	auto pauseStatusMapIter = paused_status_map.find(stream.stream_type);
@@ -948,7 +936,7 @@ bool GSoundProcessor::tryResumeStream(const AltsoundStreamInfo& stream)
 	// If the stream type is not found, log an error and return
 	if (pauseStatusMapIter == paused_status_map.end()) {
 		ALT_ERROR(1, "Unknown stream type");
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::tryResumeStream()");
 		return false;
 	}
@@ -966,7 +954,7 @@ bool GSoundProcessor::tryResumeStream(const AltsoundStreamInfo& stream)
 		if (BASS_ChannelIsActive(hstream) == BASS_ACTIVE_PAUSED) {
 			if (!BASS_ChannelPlay(hstream, 0)) {
 				ALT_ERROR(1, "FAILED BASS_ChannelPlay(%u): %s", hstream, get_bass_err());
-				OUTDENT;
+				ALT_OUTDENT;
 				ALT_DEBUG(0, "END GSoundProcessor::tryResumeStream()");
 				return false;
 			}
@@ -974,7 +962,7 @@ bool GSoundProcessor::tryResumeStream(const AltsoundStreamInfo& stream)
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::tryResumeStream()");
 	return true;
 }
@@ -987,7 +975,7 @@ bool GSoundProcessor::tryResumeStream(const AltsoundStreamInfo& stream)
 float GSoundProcessor::findLowestDuckVolume(AltsoundSampleType stream_type)
 {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::findLowestDuckVolume()");
-	INDENT;
+	ALT_INDENT;
 
 	const auto map = duck_vol_map[stream_type];
 
@@ -995,7 +983,7 @@ float GSoundProcessor::findLowestDuckVolume(AltsoundSampleType stream_type)
 		// If there are no entries in the map, return the default volume.
 		ALT_DEBUG(1, "%s duck_vol_map is empty()", toString(stream_type));
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundProcessor::findLowestDuckVolume()");
 		return 1.0f;
 	}
@@ -1007,7 +995,7 @@ float GSoundProcessor::findLowestDuckVolume(AltsoundSampleType stream_type)
 	ALT_DEBUG(1, "Min ducking value for %s streams: %.02f", toString(stream_type), min_vol);
 
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::findLowestDuckVolume()");
 	return min_vol;
 }
@@ -1018,7 +1006,7 @@ float GSoundProcessor::findLowestDuckVolume(AltsoundSampleType stream_type)
 
 void GSoundProcessor::printBehaviorData() {
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::printBehaviorData()");
-	INDENT;
+	ALT_INDENT;
 
 	ALT_DEBUG(0, "Printing duck_vol_map:");
 	for (const auto& duckPair : duck_vol_map) {
@@ -1038,7 +1026,7 @@ void GSoundProcessor::printBehaviorData() {
 		}
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::printBehaviorData()");
 }
 

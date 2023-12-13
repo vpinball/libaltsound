@@ -1,0 +1,121 @@
+name: libaltsound
+on:
+  push:
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+            arch: x64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+          - os: macos-latest
+            platform: ios
+            arch: arm64  
+          - os: macos-latest
+            platform: tvos
+            arch: arm64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: aarch64
+          - os: ubuntu-latest
+            platform: android
+            arch: arm64-v8a
+    steps:
+      - uses: actions/checkout@v4
+      - if: (!((matrix.platform == 'linux') && (matrix.arch == 'aarch64')))
+        name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
+        run: |
+          if [[ "$(uname)" == "Darwin" ]]; then
+             NUM_PROCS=$(sysctl -n hw.ncpu)
+          else
+             NUM_PROCS=$(nproc)
+          fi
+          cd platforms/${{ matrix.platform }}/${{ matrix.arch }}
+          ./external.sh
+          cp CMakeLists.txt ../../../CMakeLists.txt
+          cd ../../..
+          cmake -DCMAKE_BUILD_TYPE=Release -B build
+          cmake --build build -- -j${NUM_PROCS}
+      - if: (matrix.platform == 'linux') && (matrix.arch == 'aarch64')
+        name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }} (arm runner)
+        uses: pguyot/arm-runner-action@v2
+        with:
+          base_image: raspios_lite_arm64:latest
+          image_additional_mb: 4096
+          cpu: cortex-a53
+          cpu_info: cpuinfo/raspberrypi_zero2_w_arm64
+          bind_mount_repository: true
+          commands: |
+            apt-get update -y --allow-releaseinfo-change
+            apt-get install --no-install-recommends -y pkg-config cmake
+            NUM_PROCS=$(nproc)
+            cd platforms/linux/aarch64
+            ./external.sh
+            cp CMakeLists.txt ../../../CMakeLists.txt
+            cd ../../..
+            cmake -DCMAKE_BUILD_TYPE=Release -B build
+            cmake --build build -- -j${NUM_PROCS}
+      - run: |
+          mkdir tmp
+          for pattern in "*.a" "*.so" "*.dylib" "*.exe" "altsound_test" "altsound_test_s"; do
+             for file in build/$pattern; do
+                if [ -e "$file" ]; then
+                   cp "$file" tmp
+                fi
+             done
+          done
+      - run: |
+          cd tmp
+          tar -czvf ../libaltsound-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz *
+      - uses: actions/upload-artifact@v3
+        with:
+          name: libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
+          path: libaltsound-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+
+  build-macos:
+    runs-on: macos-latest
+    needs: [ build ]
+    name: Build libaltsound-macos
+    steps:
+      - uses: actions/download-artifact@v3
+      - run: |
+          cd libaltsound-macos-x64
+          tar -xzvf libaltsound-macos-x64.tar.gz
+          cd ..
+          cd libaltsound-macos-arm64
+          tar -xzvf libaltsound-macos-arm64.tar.gz
+      - run: |
+          mkdir tmp
+          lipo -create -output tmp/libaltsound.dylib \
+             libaltsound-macos-arm64/libaltsound.dylib \
+             libaltsound-macos-x64/libaltsound.dylib 
+          lipo -create -output tmp/altsound_test \
+             libaltsound-macos-arm64/altsound_test \
+             libaltsound-macos-x64/altsound_test
+          lipo -create -output tmp/altsound_test_s \
+             libaltsound-macos-arm64/altsound_test_s \
+             libaltsound-macos-x64/altsound_test_s
+          cp libaltsound-macos-arm64/libbass.dylib tmp
+      - run: |
+          cd tmp
+          tar -czvf ../libaltsound-macos.tar.gz *
+      - uses: actions/upload-artifact@v3
+        with:
+          name: libaltsound-macos
+          path: libaltsound-macos.tar.gz

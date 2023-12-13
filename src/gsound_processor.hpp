@@ -20,16 +20,12 @@
  #endif
 #endif
 
-// Library includes
-#include <string>
-#include <array>
-#include <random>
-#include <unordered_map>
-
-// Local includes
 #include "altsound_processor_base.hpp"
-#include "..\ext\bass\bass.h"
 #include "altsound_logger.hpp"
+
+#include "bass.h"
+
+#include <random>
 
 constexpr int NUM_STREAM_TYPES = 5;
 
@@ -48,7 +44,7 @@ public:
 	GSoundProcessor(GSoundProcessor&) = delete;
 
 	// Standard constructor
-	GSoundProcessor(const std::string& game_name, const std::string& vpm_path);
+	GSoundProcessor(const string& game_name, const string& vpm_path);
 
 	// Destructor
 	~GSoundProcessor();
@@ -60,7 +56,7 @@ public:
 	bool handleCmd(const unsigned int cmd_in) override;
 
 	// DEBUG helper fns to print all behavior data
-	static void GSoundProcessor::printBehaviorData();
+	static void printBehaviorData();
 
 protected:
 

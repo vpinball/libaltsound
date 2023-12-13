@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <map>
-#include <string>
 
 // DAR@20230706
 // This must be done here and only here to avoid breaking the 
@@ -24,8 +23,13 @@ thread_local int AltsoundLogger::base_indent = 0;
 // CTOR/DTOR
 // ----------------------------------------------------------------------------
 
-AltsoundLogger::AltsoundLogger(const std::string& filename)
-: log_level(Debug), out(filename)
+AltsoundLogger::AltsoundLogger()
+: log_level(None), console(false)
+{
+}
+
+AltsoundLogger::AltsoundLogger(const string& filename)
+: log_level(Debug), out(filename), console(true)
 {
 }
 
@@ -33,7 +37,7 @@ AltsoundLogger::AltsoundLogger(const std::string& filename)
 // Helper method to convert string representation of Level enum to enum value
 // ----------------------------------------------------------------------------
 
-AltsoundLogger::Level AltsoundLogger::toLogLevel(const std::string& lvl_in)
+AltsoundLogger::Level AltsoundLogger::toLogLevel(const string& lvl_in)
 {
 	static const std::map<std::string, Level> typeMap{
 		{"NONE"     , Level::None},
@@ -44,7 +48,7 @@ AltsoundLogger::Level AltsoundLogger::toLogLevel(const std::string& lvl_in)
 		{"UNDEFINED", Level::UNDEFINED}
 	};
 
-	std::string str = lvl_in;
+	string str = lvl_in;
 	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
 	const auto it = typeMap.find(str);

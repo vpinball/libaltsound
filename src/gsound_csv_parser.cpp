@@ -6,18 +6,13 @@
 // license:BSD-3-Clause
 // copyright-holders: Dave Roscoe
 // ---------------------------------------------------------------------------
-#include "gsound_csv_parser.hpp"
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
-#include <string>
-#include <vector>
+#include "gsound_csv_parser.hpp"
+#include "altsound_logger.hpp"
+
 #include <unordered_set>
 #include <algorithm>
-
-#include "altsound_logger.hpp"
+#include <iomanip>
 
 extern AltsoundLogger alog;
 
@@ -25,10 +20,10 @@ extern AltsoundLogger alog;
 // CTOR/DTOR
 // ----------------------------------------------------------------------------
 
-GSoundCsvParser::GSoundCsvParser(const std::string& path_in)
+GSoundCsvParser::GSoundCsvParser(const string& path_in)
 : altsound_path(path_in)
 {
-	filename = altsound_path + "/g-sound.csv";
+	filename = altsound_path + "g-sound.csv";
 }
 
 // ----------------------------------------------------------------------------
@@ -36,23 +31,23 @@ GSoundCsvParser::GSoundCsvParser(const std::string& path_in)
 bool GSoundCsvParser::parse(std::vector<GSoundSampleInfo>& samples_out)
 {
 	ALT_DEBUG(0, "BEGIN GSoundCsvParser::parse()");
-	INDENT;
+	ALT_INDENT;
 
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		ALT_ERROR(0, "Unable to open file: %s", filename.c_str());
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END GSoundCsvParser::parse()");
 		return false;
 	}
 
-	std::string line;
+	string line;
 
 	// skip header row
 	std::getline(file, line);
 
-	std::unordered_set<std::string> allowed_types = {
+	std::unordered_set<string> allowed_types = {
 		"music",
 		"callout",
 		"solo",
@@ -64,16 +59,17 @@ bool GSoundCsvParser::parse(std::vector<GSoundSampleInfo>& samples_out)
 
 	try {
 		while (std::getline(file, line)) {
-			if (line.empty()) {
-				// ignore blank lines
+			if (!line.empty() && line.back() == '\r')
+				line.pop_back();
+
+			if (line.empty())
 				continue;
-			}
 
 			// Some Altsounds use quotes around fields.  These need to be removed.
 			line.erase(std::remove(line.begin(), line.end(), '\"'), line.end());
 
 			std::stringstream ss(line);
-			std::string field;
+			string field;
 			GSoundSampleInfo entry;
 
 			// Read ID field (unsigned hexadecimal)
@@ -152,7 +148,7 @@ bool GSoundCsvParser::parse(std::vector<GSoundSampleInfo>& samples_out)
 					break;
 				}
 
-				std::string sample_path = altsound_path + '/' + field;
+				string sample_path = altsound_path + field;
 
 				// Normalize to forward slashes
 				std::replace(sample_path.begin(), sample_path.end(), '\\', '/');
@@ -183,7 +179,7 @@ bool GSoundCsvParser::parse(std::vector<GSoundSampleInfo>& samples_out)
 
 	file.close();
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundCsvParser::parse()");
 	return success;
 }

@@ -19,14 +19,13 @@
  #endif
 #endif
 
-// Std Library includes
-#include <assert.h>
-#include <bitset>
-#include <string>
-
-// Local includes
 #include "altsound_data.hpp"
+
 #include "inipp.h"
+
+#include <assert.h>
+
+using std::string;
 
 class AltsoundIniProcessor
 {
@@ -34,7 +33,7 @@ public:
 
 	// syntactic candy
 	using IniSection = std::map<inipp::Ini<char>::String, inipp::Ini<char>::String>;
-	using ProfileMap = std::unordered_map<std::string, DuckingProfile>;
+	using ProfileMap = std::unordered_map<string, DuckingProfile>;
 
 	// Default constructor
 	AltsoundIniProcessor() = default;
@@ -46,39 +45,39 @@ public:
 	AltsoundIniProcessor(AltsoundIniProcessor&) = delete;
 
 	// Parse the altsound ini file
-	bool parse_altsound_ini(const std::string& path_in);
+	bool parse_altsound_ini(const string& path_in);
 
 	// Return parsed flag indicating whether to enable sound command recording
-	const bool AltsoundIniProcessor::recordSoundCmds() const;
+	const bool recordSoundCmds() const;
 
 	// Return parsed AltsoundFormat type
-	const std::string& getAltsoundFormat() const;
+	const string& getAltsoundFormat() const;
 
 	// Return parsed ROM volume control flag
 	const bool usingRomVolumeControl() const;
 
 	// Return parsed skip count value
-	const unsigned int AltsoundIniProcessor::getSkipCount() const;
+	const unsigned int getSkipCount() const;
 
 private: // functions
 	
 	// helper function to parse behavior variable values
-	bool parseBehaviorValue(const IniSection& section, const std::string& key, std::bitset<5>& behavior);
+	bool parseBehaviorValue(const IniSection& section, const string& key, std::bitset<5>& behavior);
 	
 	// helper function to parse behavior volume values
-	bool parseVolumeValue(const IniSection& section, const std::string& key, float& volume);
+	bool parseVolumeValue(const IniSection& section, const string& key, float& volume);
 
 	// helper function to parse ducking profiles
 	bool parseDuckingProfile(const IniSection& ducking_section, ProfileMap& profiles);
 
 	// determine altsound format from installed data
-	std::string get_altound_format(const std::string& path_in);
+	string get_altound_format(const string& path_in);
 
 	// Create altsound.ini file
-	bool create_altsound_ini(const std::string& path_in);
+	bool create_altsound_ini(const string& path_in);
 
 	// Helper function to trim whitespace from strings and conver to lowercase
-	std::string normalizeString(std::string str);
+	string normalizeString(string str);
 
 	// Helper template class to replicate C++17 function
 	template<class T>
@@ -92,7 +91,7 @@ private: // data
 
 	bool record_sound_commands = false;
 	bool rom_volume_control = true;
-	std::string altsound_format;
+	string altsound_format;
 	unsigned int skip_count = 0;
 };
 
@@ -106,7 +105,7 @@ inline const bool AltsoundIniProcessor::recordSoundCmds() const {
 
 // ----------------------------------------------------------------------------
 
-inline const std::string& AltsoundIniProcessor::getAltsoundFormat() const {
+inline const string& AltsoundIniProcessor::getAltsoundFormat() const {
 	return altsound_format;
 }
 

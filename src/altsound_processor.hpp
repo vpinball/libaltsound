@@ -5,7 +5,7 @@
 // CSV and PinSound format
 // ---------------------------------------------------------------------------
 // license:BSD-3-Clause
-// copyright-holders: Dave Roscoe, Carsten Wächter
+// copyright-holders: Dave Roscoe, Carsten Wï¿½chter
 // ---------------------------------------------------------------------------
 
 #ifndef ALTSOUND_PROCESSOR_H
@@ -20,14 +20,9 @@
  #endif
 #endif
 
-// Library includes
-#include <string>
-#include <array>
-
-// Local includes
 #include "altsound_processor_base.hpp"
-#include "snd_alt.h"
-#include "..\ext\bass\bass.h"
+
+#include "bass.h"
 
 // ---------------------------------------------------------------------------
 // AltsoundProcessor class definition
@@ -44,9 +39,9 @@ public:
 	AltsoundProcessor(AltsoundProcessor&) = delete;
 
 	// Standard constructor
-	AltsoundProcessor(const std::string& game_name_in,
-		              const std::string& vpm_path_in,
-		              const std::string& format_in);
+	AltsoundProcessor(const string& game_name_in,
+		              const string& vpm_path_in,
+		              const string& format_in);
 
 	// Destructor
 	~AltsoundProcessor();

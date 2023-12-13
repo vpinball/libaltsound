@@ -1,0 +1,51 @@
+#pragma once
+
+#if defined(_WIN32) || defined(_WIN64)
+#define ALTSOUND_API extern "C" __declspec(dllexport)
+#else
+#define ALTSOUND_API extern "C" __attribute__((visibility("default")))
+#define CALLBACK
+#endif
+
+#include <string>
+
+using std::string;
+
+typedef enum : uint64_t {
+	ALTSOUND_HARDWARE_GEN_NONE = 0x0000000000000,
+	ALTSOUND_HARDWARE_GEN_WPCALPHA_1 = 0x0000000000001,  // Alpha-numeric display S11 sound, Dr Dude 10/90
+	ALTSOUND_HARDWARE_GEN_WPCALPHA_2 = 0x0000000000002,  // Alpha-numeric display,  - The Machine BOP 4/91
+	ALTSOUND_HARDWARE_GEN_WPCDMD = 0x0000000000004,      // Dot Matrix Display, Terminator 2 7/91 - Party Zone 10/91
+	ALTSOUND_HARDWARE_GEN_WPCFLIPTRON = 0x0000000000008, // Fliptronic flippers, Addams Family 2/92 - Twilight Zone 5/93
+	ALTSOUND_HARDWARE_GEN_WPCDCS = 0x0000000000010,      // DCS Sound system, Indiana Jones 10/93 - Popeye 3/94
+	ALTSOUND_HARDWARE_GEN_WPCSECURITY = 0x0000000000020, // Security chip, World Cup Soccer 3/94 - Jackbot 10/95
+	ALTSOUND_HARDWARE_GEN_WPC95DCS = 0x0000000000040,    // Hybrid WPC95 driver + DCS sound, Who Dunnit
+	ALTSOUND_HARDWARE_GEN_WPC95 = 0x0000000000080,       // Integrated boards, Congo 3/96 - Cactus Canyon 2/99
+	ALTSOUND_HARDWARE_GEN_S11 = 0x0000080000000,         // No external sound board
+	ALTSOUND_HARDWARE_GEN_S11X = 0x0000000000100,        // S11C sound board
+	ALTSOUND_HARDWARE_GEN_S11B2 = 0x0000000000200,       // Jokerz! sound board
+	ALTSOUND_HARDWARE_GEN_S11C = 0x0000000000400,        // No CPU board sound
+	ALTSOUND_HARDWARE_GEN_DE = 0x0000000001000,          // DE AlphaSeg
+	ALTSOUND_HARDWARE_GEN_DEDMD16 = 0x0000000002000,     // DE 128x16
+	ALTSOUND_HARDWARE_GEN_DEDMD32 = 0x0000000004000,     // DE 128x32
+	ALTSOUND_HARDWARE_GEN_DEDMD64 = 0x0000000008000,     // DE 192x64
+	ALTSOUND_HARDWARE_GEN_WS = 0x0004000000000,          // Whitestar
+	ALTSOUND_HARDWARE_GEN_WS_1 = 0x0008000000000,        // Whitestar with extra RAM
+	ALTSOUND_HARDWARE_GEN_WS_2 = 0x0010000000000,        // Whitestar with extra DMD
+} ALTSOUND_HARDWARE_GEN;
+
+typedef enum {
+	ALTSOUND_LOG_LEVEL_NONE = 0,
+	ALTSOUND_LOG_LEVEL_INFO,
+	ALTSOUND_LOG_LEVEL_ERROR,
+	ALTSOUND_LOG_LEVEL_WARNING,
+	ALTSOUND_LOG_LEVEL_DEBUG,
+	ALTSOUND_LOG_LEVEL_UNDEFINED,
+} ALTSOUND_LOG_LEVEL;
+
+ALTSOUND_API void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
+ALTSOUND_API bool AltsoundInit(const string& pinmamePath, const string& gameName);
+ALTSOUND_API void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
+ALTSOUND_API bool AltsoundProcessCommand(const unsigned int cmd, int attenuation);
+ALTSOUND_API void AltsoundPause(bool pause);
+ALTSOUND_API void AltsoundShutdown();

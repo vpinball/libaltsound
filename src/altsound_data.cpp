@@ -9,18 +9,15 @@
 // license:BSD-3-Clause
 // copyright-holders:Dave Roscoe
 // ---------------------------------------------------------------------------
+
 #include "altsound_data.hpp"
-
-// Standard Library includes
-#include <cctype>
-#include <map>
-#include <algorithm>
-
-// Local includes
-#include "../../ext/bass/bass.h"
 #include "altsound_logger.hpp"
 
-// namespace resolution
+#include <map>
+#include <sys/stat.h>
+
+#include "bass.h"
+
 using std::string;
 
 // ----------------------------------------------------------------------------
@@ -80,7 +77,8 @@ float _behavior_info::getDuckVolume(unsigned int profile_num, AltsoundSampleType
 // Helper function to translate AltsoundSample type constants to strings
 // ---------------------------------------------------------------------------
 
-const char* toString(AltsoundSampleType sampleType) {
+const char* toString(AltsoundSampleType sampleType)
+{
 	switch (sampleType) {
 	case UNDEFINED: return "UNDEFINED";
 	case MUSIC:     return "MUSIC";
@@ -191,7 +189,7 @@ const char* get_bass_err()
 bool dir_exists(const std::string& path_in)
 {
 	ALT_DEBUG(0, "BEGIN dir_exists()");
-	INDENT;
+	ALT_INDENT;
 
 	struct stat info;
 
@@ -202,7 +200,7 @@ bool dir_exists(const std::string& path_in)
 	}
 	ALT_INFO(0, "Directory: %s exists", path_in.c_str());
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_INFO(0, "END dir_exists()");
 	return (info.st_mode & S_IFDIR) != 0;
 }

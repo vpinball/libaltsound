@@ -19,21 +19,24 @@
  #endif
 #endif
 
-// Std Library includes
+#define FMT_HEADER_ONLY
+#include "fmt/printf.h"
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <string>
+
+using std::string;
 
 // convenience macros
 #define ALT_INFO(indent, msg, ...) alog.info(indent, msg, ##__VA_ARGS__)
 #define ALT_ERROR(indent, msg, ...) alog.error(indent, msg, ##__VA_ARGS__)
 #define ALT_WARNING(indent, msg, ...) alog.warning(indent, msg, ##__VA_ARGS__)
 #define ALT_DEBUG(indent, msg, ...) alog.debug(indent, msg, ##__VA_ARGS__)
-//#define INDENT alog.indent()
-#define INDENT
-//#define OUTDENT alog.outdent()
-#define OUTDENT
+//#define ALT_INDENT alog.indent()
+#define ALT_INDENT
+//#define ALT_OUTDENT alog.outdent()
+#define ALT_OUTDENT
 #define ALT_CALL(func) ([&]() { alog.indent(); auto ret = func; alog.outdent(); return ret; }())
 #define ALT_RETURN(retval) do { alog.outdent(); return retval; } while (0)
 
@@ -49,7 +52,8 @@ public:
 		UNDEFINED
 	};
 
-	explicit AltsoundLogger(const std::string& filename);
+	explicit AltsoundLogger();
+	explicit AltsoundLogger(const string& filename);
 
 	~AltsoundLogger() = default;
 
@@ -93,7 +97,9 @@ public:
 		}
 	}
 
+	void setLogPath(const string& path);
 	void setLogLevel(Level level);
+	void enableConsole(const bool enable);
 
 	// increase base indent
 	static void indent();
@@ -102,7 +108,7 @@ public:
 	static void outdent();
 
 	// convert string to Level enum value
-	Level toLogLevel(const std::string& lvl_in);
+	Level toLogLevel(const string& lvl_in);
 
 private:  // methods
 
@@ -111,20 +117,20 @@ private:  // methods
 	//
 	// main logging method
 	template<typename... Args>
-	void log(int indentLevel, Level lvl, const char* format, Args... args)
-	{
-		char buffer[1024];
-		std::snprintf(buffer, sizeof(buffer), format, args...);
+	void log(int indentLevel, Level lvl, const string& format, Args... args) {
+		string formattedString = fmt::sprintf(format, args...);
 		std::stringstream message;
-		message << std::string(indentLevel * indentWidth, ' ')
-			<< toString(lvl) << ": " << buffer << "\n";
-		std::string finalMessage = message.str();
+		message << string(indentLevel * indentWidth, ' ')
+			<< toString(lvl) << ": " << formattedString << "\n";
+		string finalMessage = message.str();
 
 		if (out.is_open()) {
 			out << finalMessage;
 			out.flush();
 		}
-		std::cout << finalMessage;
+
+		if (console)
+			std::cout << finalMessage;
 	}
 
 	// DAR@20230706
@@ -147,6 +153,7 @@ private: // data
 	// Thread-local storage for the base indentation level
 	static thread_local int base_indent;
 	Level log_level;
+	bool console = false;
 	static constexpr int indentWidth = 4;
 	std::ofstream out;
 };
@@ -155,10 +162,36 @@ private: // data
 // Inline methods
 // ----------------------------------------------------------------------------
 
+inline void AltsoundLogger::setLogPath(const string& logPath)
+{
+	if (out.is_open())
+		out.close();
+
+	if (logPath.empty())
+		return;
+
+	string full_path = logPath;
+	std::replace(full_path.begin(), full_path.end(), '\\', '/');	
+
+	if (full_path.back() != '/')
+		full_path += '/';
+
+	full_path += "altsound.log";
+
+	out.open(full_path.c_str());
+
+	none(0, "path set: %s", full_path.c_str());
+}
+
 inline void AltsoundLogger::setLogLevel(Level level)
 {
 	log_level = level;
 	none(0, "New log level set: %s", toString(log_level));
+}
+
+inline void AltsoundLogger::enableConsole(const bool enable)
+{
+	console = enable;
 }
 
 // ----------------------------------------------------------------------------

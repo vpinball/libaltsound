@@ -4,14 +4,13 @@
 // Parser for legacy and traditional altsound format CSV files
 // ---------------------------------------------------------------------------
 // license:BSD-3-Clause
-// copyright-holders:Carsten Wächter, Dave Roscoe
+// copyright-holders:Carsten Wï¿½chter, Dave Roscoe
 // ---------------------------------------------------------------------------
+
 #include "altsound_csv_parser.hpp"
+#include "altsound_logger.hpp"
 
 #include <iomanip>
-#include <algorithm>
-
-#include "altsound_logger.hpp"
 
 extern AltsoundLogger alog;
 
@@ -19,10 +18,10 @@ extern AltsoundLogger alog;
 // CTOR/DTOR
 // ----------------------------------------------------------------------------
 
-AltsoundCsvParser::AltsoundCsvParser(const std::string& altsound_path_in)
+AltsoundCsvParser::AltsoundCsvParser(const string& altsound_path_in)
 : altsound_path(altsound_path_in)
 {
-	filename = altsound_path + "/altsound.csv";
+	filename = altsound_path + "altsound.csv";
 }
 
 // ----------------------------------------------------------------------------
@@ -30,18 +29,18 @@ AltsoundCsvParser::AltsoundCsvParser(const std::string& altsound_path_in)
 bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundCsvParser::parse()");
-	INDENT;
+	ALT_INDENT;
 
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		ALT_ERROR(0, "Unable to open file: %s", filename.c_str());
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundCsvParser::parse()");
 		return false;
 	}
 
-	std::string line;
+	string line;
 
 	// skip header row
 	std::getline(file, line);
@@ -50,16 +49,17 @@ bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 
 	try {
 		while (std::getline(file, line)) {
-			if (line.empty()) {
-				// ignore blank lines
+			if (!line.empty() && line.back() == '\r')
+				line.pop_back();
+
+			if (line.empty())
 				continue;
-			}
 
 			// Some Altsounds use quotes around fields.  These need to be removed.
 			line.erase(std::remove(line.begin(), line.end(), '\"'), line.end());
 
 			std::stringstream ss(line);
-			std::string field;
+			string field;
 			AltsoundSampleInfo entry;
 
 			// Assume the fields are in the following order:
@@ -78,7 +78,7 @@ bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 
 			// CHANNEL
 			if (std::getline(ss, field, ',')) {
-				std::string trimmed = trim(field);
+				string trimmed = trim(field);
 
 				if (trimmed.empty()) {
 					entry.channel = -1;
@@ -167,7 +167,7 @@ bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 					break;
 				}
 
-				std::string full_path = altsound_path + '/' + field;
+				string full_path = altsound_path + field;
 
 				// Normalize to forward slashes
 				std::replace(full_path.begin(), full_path.end(), '\\', '/');
@@ -199,7 +199,7 @@ bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 		success = false;
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundCsvParser::parse()");
 	return success;
 }

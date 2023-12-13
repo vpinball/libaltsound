@@ -8,17 +8,7 @@
 // ---------------------------------------------------------------------------
 
 #include "altsound_ini_processor.hpp"
-
-// Std Library includes
-#include <algorithm>
-#include <fstream>
-#include <string>
-
-// Local includes
 #include "altsound_logger.hpp"
-
-// namespace resolution
-using std::string;
 
 // ----------------------------------------------------------------------------
 // Global variables
@@ -41,11 +31,10 @@ extern BehaviorInfo overlay_behavior;
 bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundIniProcessor::parse_altsound_ini()");
-	INDENT;
+	ALT_INDENT;
 
 	// if altsound.ini does not exist, create it
-	string ini_path = path_in;
-	ini_path.append("\\altsound.ini");
+	string ini_path = path_in + "altsound.ini";
 
 	std::ifstream file_in(ini_path);
 	if (!file_in.good()) {
@@ -53,7 +42,7 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 		if (!create_altsound_ini(path_in)) {
 			ALT_ERROR(0, "FAILED AltsoundIniProcessor::create_ini_file()");
 
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END AltsoundIniProcessor::parse_altsound_ini()");
 			return false;
 		}
@@ -66,7 +55,7 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 	if (!file_in.good()) {
 		ALT_ERROR(0, "Failed to open \"altsound.ini\"");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END parse_altsound_ini()");
 		return false;
 	}
@@ -126,7 +115,7 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 	ALT_INFO(0, "Parsed \"logging_level\": %s", logging.c_str());
 	const AltsoundLogger::Level level = alog.toLogLevel(logging);
 	if (level == AltsoundLogger::UNDEFINED) {
-		ALT_ERROR(0, "Unknown log level: %s. Defaulting to Error logging", logging);
+		ALT_ERROR(0, "Unknown log level: %s. Defaulting to Error logging", logging.c_str());
 		alog.setLogLevel(AltsoundLogger::Level::Error);
 	}
 	else {
@@ -311,7 +300,7 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 
 	// ------------------------------------------------------------------------
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END parse_altsound_ini()");
 	return success;
 }
@@ -321,11 +310,11 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 // ---------------------------------------------------------------------------
 
 bool AltsoundIniProcessor::parseBehaviorValue(const IniSection& section,
-	                                          const std::string& key,
+	                                          const string& key,
 	                                          std::bitset<5>& behavior)
 {
-	std::string token;
-	std::string parsed_value;
+	string token;
+	string parsed_value;
 	inipp::get_value(section, key, parsed_value);
 
 	std::stringstream ss(parsed_value);
@@ -355,9 +344,9 @@ bool AltsoundIniProcessor::parseBehaviorValue(const IniSection& section,
 // Helper function to parse G-Sound behavior volume values
 // ---------------------------------------------------------------------------
 
-bool AltsoundIniProcessor::parseVolumeValue(const IniSection& section, const std::string& key, float& volume)
+bool AltsoundIniProcessor::parseVolumeValue(const IniSection& section, const string& key, float& volume)
 {
-	std::string parsed_value;
+	string parsed_value;
 	if (!inipp::get_value(section, key, parsed_value)) {
 		return true;
 	}
@@ -385,7 +374,7 @@ bool AltsoundIniProcessor::parseVolumeValue(const IniSection& section, const std
 bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section, ProfileMap& profiles)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundIniProcessor::parseDuckingProfile()");
-	INDENT;
+	ALT_INDENT;
 
 	// Iterate over the key-value pairs in the ducking_section
 	for (const auto& pair : ducking_section) {
@@ -393,13 +382,13 @@ bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section
 		const inipp::Ini<char>::String& value = pair.second; // profile value string
 
 		// Check if the key starts with "ducking_profile" to identify the profiles
-		std::string subkey_test = "ducking_profile";
-		std::string subkey = normalizeString(key.substr(0, subkey_test.size()));
+		string subkey_test = "ducking_profile";
+		string subkey = normalizeString(key.substr(0, subkey_test.size()));
 
 		if (subkey != subkey_test) {
-			ALT_ERROR(1, "Failed to parse ini file - unexpected key: %s", key);
+			ALT_ERROR(1, "Failed to parse ini file - unexpected key: %s", key.c_str());
 
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END AltsoundIniProcessor::parseDuckingProfile()");
 			return false;
 		}
@@ -411,38 +400,38 @@ bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section
 			profile_number = std::stoi(key.substr(subkey.size()));
 		}
 		catch (std::invalid_argument& e) {
-			ALT_ERROR(1, "Invalid profile number: %s", key.substr(subkey.size()));
+			ALT_ERROR(1, "Invalid profile number: %s", key.substr(subkey.size()).c_str());
 
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END AltsoundIniProcessor::parseDuckingProfile()");
 			return false;
 		}
 
 		// Parse the value to extract the individual tokens and volume values
 		std::istringstream valueStream(value);
-		std::string token;
+		string token;
 		DuckingProfile profile;
 
 		while (std::getline(valueStream, token, ',')) {
 			// Extract the label and volume value
 			std::istringstream tokenStream(token);
-			std::string label;
+			string label;
 			int val;
 
 			// Split the token at the ':' delimiter
 			if (!std::getline(tokenStream, label, ':')) {
-				ALT_ERROR(1, "Failed to parse label: %s", token);
+				ALT_ERROR(1, "Failed to parse label: %s", token.c_str());
 
-				OUTDENT;
+				ALT_OUTDENT;
 				ALT_DEBUG(0, "END AltsoundIniProcessor::parseDuckingProfile()");
 				return false;
 			}
 
 			label = normalizeString(label);
 			if (!(tokenStream >> val)) {
-				ALT_ERROR(1, "Failed to parse value: %s", token);
+				ALT_ERROR(1, "Failed to parse value: %s", token.c_str());
 
-				OUTDENT;
+				ALT_OUTDENT;
 				ALT_DEBUG(0, "END AltsoundIniProcessor::parseDuckingProfile()");
 				return false;
 			}
@@ -466,20 +455,20 @@ bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section
 				profile.overlay_duck_vol = volume;
 			}
 			else {
-				ALT_ERROR(1, "Unknown sample type label: %s", label);
+				ALT_ERROR(1, "Unknown sample type label: %s", label.c_str());
 
-				OUTDENT;
+				ALT_OUTDENT;
 				ALT_DEBUG(0, "END AltsoundIniProcessor::parseDuckingProfile()");
 				return false;
 			}
 		}
 
 		// Store the parsed profile in the ducking_profiles map
-		std::string profileKey = "profile" + std::to_string(profile_number);
+		string profileKey = "profile" + std::to_string(profile_number);
 		profiles[profileKey] = profile;
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundIniProcessor::parseDuckingProfile()");
 	return true;
 }
@@ -499,31 +488,31 @@ bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section
 //
 // Once the .ini file is created, it can be modified to adjust preference.
 //
-std::string AltsoundIniProcessor::get_altound_format(const std::string& path_in)
+string AltsoundIniProcessor::get_altound_format(const string& path_in)
 {
 	ALT_DEBUG(0, "BEGIN get_altsound_format()");
-	INDENT;
+	ALT_INDENT;
 
-	const std::vector<std::pair<std::string, std::string>> filesAndFormats{
-		{ "\\g-sound.csv", "g-sound" },
-		{ "\\altsound.csv", "altsound" },
+	const std::vector<std::pair<string, string>> filesAndFormats{
+		{ "g-sound.csv", "g-sound" },
+		{ "altsound.csv", "altsound" },
 	};
 
 	for (const auto& fileAndFormat : filesAndFormats) {
 		std::ifstream ini(path_in + fileAndFormat.first);
 		if (ini) {
 			ALT_INFO(0, ("Using " + fileAndFormat.second + " format").c_str());
-			OUTDENT;
+			ALT_OUTDENT;
 			ALT_DEBUG(0, "END get_altsound_format()");
 			return fileAndFormat.second;
 		}
 	}
 
-	const std::vector<std::string> directories{
-		"\\jingle",
-		"\\music",
-		"\\sfx",
-		"\\voice"
+	const std::vector<string> directories{
+		"jingle",
+		"music",
+		"sfx",
+		"voice"
 	};
 
 	if (std::any_of(directories.begin(), directories.end(), [&](const auto& directory) {
@@ -531,13 +520,13 @@ std::string AltsoundIniProcessor::get_altound_format(const std::string& path_in)
 	}))
 	{
 		ALT_INFO(0, "Using Legacy (PinSound) format");
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END get_altsound_format()");
 		return "legacy";
 	}
 
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END get_altsound_format()");
 	return string();
 }
@@ -547,7 +536,7 @@ std::string AltsoundIniProcessor::get_altound_format(const std::string& path_in)
 // lowercase
 // ---------------------------------------------------------------------------
 
-std::string AltsoundIniProcessor::normalizeString(std::string str) {
+string AltsoundIniProcessor::normalizeString(string str) {
 	str = trim(str); // remove whitespace
 	std::transform(str.begin(), str.end(), str.begin(), ::tolower); // convert to lowercase
 	return str;
@@ -556,23 +545,23 @@ std::string AltsoundIniProcessor::normalizeString(std::string str) {
 // Helper function to create the altsound.ini file
 // ---------------------------------------------------------------------------
 
-bool AltsoundIniProcessor::create_altsound_ini(const std::string& path_in)
+bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundIniProcessor::create_altsound_ini()");
-	INDENT;
+	ALT_INDENT;
 
-	const std::string format = get_altound_format(path_in);
+	const string format = get_altound_format(path_in);
 
 	if (format.empty()) {
 		ALT_ERROR(0, "FAILED AltsoundIniProcessor::get_altsound_format()");
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundIniProcessor::create_altsound_ini()");
 		return false;
 	}
 	ALT_INFO(0, "SUCCESS AltsoundIniProcessor::get_altsound_format(): %s", format.c_str());
 
-	const std::string config_str =
+	const string config_str =
 		"; ----------------------------------------------------------------------------\n"
 		"; altsound.ini - Configuration file for all AltSound formats\n"
 		";\n"
@@ -724,7 +713,7 @@ bool AltsoundIniProcessor::create_altsound_ini(const std::string& path_in)
 		"ducking_profile1 = sfx:65, music:65\n"
 		"ducking_profile2 = sfx:80, music:50\n";
 
-	const std::string ini_path = path_in + "\\altsound.ini";
+	const string ini_path = path_in + "altsound.ini";
 	std::ofstream file_out(ini_path);
 
 	if (file_out.is_open()) {
@@ -734,12 +723,12 @@ bool AltsoundIniProcessor::create_altsound_ini(const std::string& path_in)
 	else {
 		ALT_ERROR(1, "Unable to open file: %s", ini_path.c_str());
 
-		OUTDENT;
+		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundIniProcessor::create_altsound_ini()");
 		return false;
 	}
 
-	OUTDENT;
+	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundIniProcessor::create_altsound_ini()");
 	return true;
 }

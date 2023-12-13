@@ -19,13 +19,11 @@
  #endif
 #endif
 
-// Std Library includes
-#include <string>
-
-// local includes
 #include "altsound_data.hpp"
 
-extern std::string get_vpinmame_path();
+using std::string;
+
+extern string get_vpinmame_path();
 
 // ---------------------------------------------------------------------------
 // Class definitions
@@ -35,7 +33,7 @@ class GSoundCsvParser {
 public: // methods
 
 	// Standard constructor
-	explicit GSoundCsvParser(const std::string& path_in);
+	explicit GSoundCsvParser(const string& path_in);
 
 	bool parse(std::vector<GSoundSampleInfo>& samples_out);
 
@@ -53,8 +51,8 @@ private: // functions
 
 private: // data
 
-	std::string altsound_path;
-	std::string filename;
+	string altsound_path;
+	string filename;
 };
 
 #endif // GSOUND_CSV_PARSER_HPP

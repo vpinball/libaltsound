@@ -26,6 +26,7 @@
 #include <bitset>
 #include <unordered_map>
 #include <vector>
+#include <cstdint>
 
 #define ALT_MAX_CMDS 4
 #define BASS_NO_STREAM 0

@@ -7,6 +7,7 @@
 #define CALLBACK
 #endif
 
+#include <cstdint>
 #include <string>
 
 using std::string;

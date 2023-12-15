@@ -39,9 +39,9 @@ void altsound_preprocess_commands(int cmd)
 		case ALTSOUND_HARDWARE_GEN_WPC95: {
 			ALT_DEBUG(0, "Hardware Generation: WPCDCS, WPCSECURITY, WPC95DCS, WPC95");
 
-			if (((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA)) ||
-				((g_cmdData.cmd_buffer[2] == 0x00) && (g_cmdData.cmd_buffer[1] == 0x00) && (g_cmdData.cmd_buffer[0] == 0x00))) {
-				if ((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) {
+			if (((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA)) // change volume?
+				|| ((g_cmdData.cmd_buffer[2] == 0x00) && (g_cmdData.cmd_buffer[1] == 0x00) && (g_cmdData.cmd_buffer[0] == 0x00))) { // glitch in command buffer?
+				if ((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) { // change volume op (following first byte = volume, second = ~volume, if these don't match: ignore)
 					if (g_pProcessor->romControlsVol()) {
 						g_pProcessor->setGlobalVol(std::min((float)g_cmdData.cmd_buffer[1] / 127.f, 1.0f));
 						ALT_INFO(0, "Change volume %.02f", g_pProcessor->getGlobalVol());
@@ -62,13 +62,13 @@ void altsound_preprocess_commands(int cmd)
 			break;
 		}
 
-		case ALTSOUND_HARDWARE_GEN_WPCALPHA_2:
-		case ALTSOUND_HARDWARE_GEN_WPCDMD:
+		case ALTSOUND_HARDWARE_GEN_WPCALPHA_2: //!! ?? test this gen actually
+		case ALTSOUND_HARDWARE_GEN_WPCDMD: // remaps everything to 16bit, a bit stupid maybe
 		case ALTSOUND_HARDWARE_GEN_WPCFLIPTRON: {
 			ALT_DEBUG(0, "Hardware Generation: WPCALPHA_2, WPCDMD, WPCFLIPTRON");
 
 			g_cmdData.cmd_filter = 0;
-			if ((g_cmdData.cmd_buffer[2] == 0x79) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) {
+			if ((g_cmdData.cmd_buffer[2] == 0x79) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) { // change volume op (following first byte = volume, second = ~volume, if these don't match: ignore)
 				if (g_pProcessor->romControlsVol()) {
 					g_pProcessor->setGlobalVol(std::min((float)g_cmdData.cmd_buffer[1] / 127.f, 1.0f));
 					ALT_INFO(0, "Change volume %.02f", g_pProcessor->getGlobalVol());
@@ -80,25 +80,29 @@ void altsound_preprocess_commands(int cmd)
 				g_cmdData.cmd_counter = 0;
 				g_cmdData.cmd_filter = 1;
 			}
-			else if (cmd != 0x7A) {
+			else if (g_cmdData.cmd_buffer[1] == 0x7A) { // 16bit command second part //!! TZ triggers a 0xFF in the beginning -> check sequence and filter?
+				g_cmdData.stored_command = g_cmdData.cmd_buffer[1];
+				g_cmdData.cmd_counter = 0;
+			}
+			else if (cmd != 0x7A) { // 8 bit command
 				g_cmdData.stored_command = 0;
 				g_cmdData.cmd_counter = 0;
 			}
-			else
+			else // 16bit command first part
 				g_cmdData.cmd_counter = 1;
 
 			break;
 		}
 
-		case ALTSOUND_HARDWARE_GEN_WPCALPHA_1:
+		case ALTSOUND_HARDWARE_GEN_WPCALPHA_1: // remaps everything to 16bit, a bit stupid maybe //!! test all these generations!
 		case ALTSOUND_HARDWARE_GEN_S11:
 		case ALTSOUND_HARDWARE_GEN_S11X:
 		case ALTSOUND_HARDWARE_GEN_S11B2:
 		case ALTSOUND_HARDWARE_GEN_S11C: {
 			ALT_DEBUG(0, "Hardware Generation: WPCALPHA_1, S11, S11X, S11B2, S11C");
 
-			if (cmd != g_cmdData.cmd_buffer[1]) {
-				g_cmdData.stored_command = 0;
+			if (cmd != g_cmdData.cmd_buffer[1]) { //!! some stuff is doubled or tripled -> filter out?
+				g_cmdData.stored_command = 0; // 8 bit command //!! 7F & 7E opcodes?
 				g_cmdData.cmd_counter = 0;
 			}
 			else
@@ -107,20 +111,20 @@ void altsound_preprocess_commands(int cmd)
 			break;
 		}
 
-		case ALTSOUND_HARDWARE_GEN_DEDMD16:
+		case ALTSOUND_HARDWARE_GEN_DEDMD16: // remaps everything to 16bit, a bit stupid maybe
 		case ALTSOUND_HARDWARE_GEN_DEDMD32:
 		case ALTSOUND_HARDWARE_GEN_DEDMD64:
-		case ALTSOUND_HARDWARE_GEN_DE: {
+		case ALTSOUND_HARDWARE_GEN_DE: { // this one just tested with BTTF so far
 			ALT_DEBUG(0, "Hardware Generation: DEDMD16, DEDMD32, DEDMD64, DE");
 
-			if (cmd != 0xFF && cmd != 0x00) {
+			if (cmd != 0xFF && cmd != 0x00) { // 8 bit command
 				g_cmdData.stored_command = 0;
 				g_cmdData.cmd_counter = 0;
 			}
-			else
+			else // ignore
 				g_cmdData.cmd_counter = 1;
 
-			if (g_cmdData.cmd_buffer[1] == 0x00 && cmd == 0x00) {
+			if (g_cmdData.cmd_buffer[1] == 0x00 && cmd == 0x00) { // handle 0x0000 special //!! meh?
 				g_cmdData.stored_command = 0;
  				g_cmdData.cmd_counter = 0;
 			}
@@ -147,14 +151,14 @@ void altsound_preprocess_commands(int cmd)
 					g_cmdData.cmd_counter = 0;
 					g_cmdData.cmd_filter = 1;
 				}
-				else if (cmd >= 0x01 && cmd <= 0x0F) {
+				else if (cmd >= 0x01 && cmd <= 0x0F) { // ignore FE 01 ... FE 0F
 					g_cmdData.stored_command = 0;
 					g_cmdData.cmd_counter = 0;
 					g_cmdData.cmd_filter = 1;
 				}
 			}
 
-			if ((cmd & 0xFC) == 0xFC)
+			if ((cmd & 0xFC) == 0xFC) // start byte of a command will ALWAYS be FF, FE, FD, FC, and never the second byte!
 				g_cmdData.cmd_counter = 1;
 
 			break;
@@ -389,7 +393,7 @@ ALTSOUND_API bool AltsoundProcessCommand(const unsigned int cmd, int attenuation
 
 	// Handle the resulting command
 	if (!ALT_CALL(g_pProcessor->handleCmd(cmd_combined))) {
-		ALT_WARNING(0, "FAILED g_pProcessor::handleCmd()");
+		ALT_WARNING(0, "FAILED processor::handleCmd()");
 
 		altsound_postprocess_commands(cmd_combined);
 		
@@ -397,7 +401,7 @@ ALTSOUND_API bool AltsoundProcessCommand(const unsigned int cmd, int attenuation
 		ALT_DEBUG(0, "END alt_sound_handle()");
 		return false;
 	}
-	ALT_INFO(0, "SUCCESS g_pProcessor::handleCmd()");
+	ALT_INFO(0, "SUCCESS processor::handleCmd()");
 
 	altsound_postprocess_commands(cmd_combined);
 	

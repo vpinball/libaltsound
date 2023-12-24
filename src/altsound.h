@@ -1,6 +1,16 @@
 #pragma once
 
-#if defined(_WIN32) || defined(_WIN64)
+#define ALTSOUND_VERSION_MAJOR 0 // X Digits
+#define ALTSOUND_VERSION_MINOR 1 // Max 2 Digits
+#define ALTSOUND_VERSION_PATCH 0 // Max 2 Digits
+
+#define _ALTSOUND_STR(x) #x
+#define ALTSOUND_STR(x) _ALTSOUND_STR(x)
+
+#define ALTSOUND_VERSION ALTSOUND_STR(ALTSOUND_VERSION_MAJOR) "." ALTSOUND_STR(ALTSOUND_VERSION_MINOR) "." ALTSOUND_STR(ALTSOUND_VERSION_PATCH)
+#define ALTSOUND_MINOR_VERSION ALTSOUND_STR(ALTSOUND_VERSION_MAJOR) "." ALTSOUND_STR(ALTSOUND_VERSION_MINOR)
+
+#ifdef _MSC_VER
 #define ALTSOUND_API extern "C" __declspec(dllexport)
 #else
 #define ALTSOUND_API extern "C" __attribute__((visibility("default")))

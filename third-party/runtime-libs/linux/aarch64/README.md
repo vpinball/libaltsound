@@ -1,1 +1,1 @@
-linux aarch libraries go here
+linux aarch64 runtime-libs go here

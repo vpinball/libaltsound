@@ -8,10 +8,14 @@
 // copyright-holders: Dave Roscoe, Carsten W�chter
 // ---------------------------------------------------------------------------
 
+#define NOMINMAX
+
 #include "altsound_processor.hpp"
 #include "altsound_csv_parser.hpp"
 #include "altsound_file_parser.hpp"
 #include "altsound_logger.hpp"
+
+#include <limits>
 
 // NOTE:
 // - SFX streams don't require tracking since multiple can play,

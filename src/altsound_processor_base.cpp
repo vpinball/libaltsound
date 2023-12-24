@@ -35,8 +35,6 @@ extern bool rec_snd_cmds;
 	std::chrono::high_resolution_clock::time_point lastCmdTime;
 #endif
 
-#include "bass.h"
-
 // ---------------------------------------------------------------------------
 // CTOR/DTOR
 // ---------------------------------------------------------------------------
@@ -47,18 +45,16 @@ AltsoundProcessorBase::AltsoundProcessorBase(const std::string& _game_name,
   vpm_path(_vpm_path),
   skip_count(0)
 {
-	if (!vpm_path.empty() && vpm_path.back() != '/') {
+	if (!vpm_path.empty() && vpm_path.back() != '/')
 		vpm_path += '/';
-	}
 }
 
 AltsoundProcessorBase::~AltsoundProcessorBase()
 {
 #ifndef ALTSOUND_STANDALONE
 	// close sound command recording log
-	if (logFile.is_open()) {
+	if (logFile.is_open())
 		logFile.close();
-	}
 #endif
 
 	// clean up stored steam objects

@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include "altsound.h"
 
 #include "altsound_data.hpp"
@@ -5,8 +7,6 @@
 #include "altsound_processor_base.hpp"
 #include "altsound_processor.hpp"
 #include "gsound_processor.hpp"
-
-#include "bass.h"
 
 StreamArray channel_stream;
 std::mutex io_mutex;

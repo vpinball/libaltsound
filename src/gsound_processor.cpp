@@ -13,8 +13,7 @@
 #include "gsound_csv_parser.hpp"
 
 #include <map>
-
-#include "bass.h"
+#include <numeric>
 
 extern AltsoundLogger alog;
 

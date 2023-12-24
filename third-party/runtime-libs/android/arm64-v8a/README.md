@@ -1,1 +1,1 @@
-android arm64-v8a libraries go here
+android arm64-v8a runtime-libs go here

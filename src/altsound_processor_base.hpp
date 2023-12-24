@@ -22,6 +22,10 @@
 
 #include "altsound_data.hpp"
 
+#include "bass.h"
+
+#include <mutex>
+
 using std::string;
 
 // ---------------------------------------------------------------------------

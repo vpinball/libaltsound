@@ -27,16 +27,18 @@
 // ---------------------------------------------------------------------------
 
 #include "altsound.h"
-#include "altsound_logger.hpp"
 
 #include <thread>
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <string>
 
 using std::string;
-
-extern AltsoundLogger alog;
 
 // ---------------------------------------------------------------------------
 // Globals
@@ -77,8 +79,8 @@ bool playbackCommands(const std::vector<TestData>& test_data)
 {
 	for (size_t i = 0; i < test_data.size(); ++i) {
 		const TestData& td = test_data[i];
-		if (!ALT_CALL(AltsoundProcessCommand(td.snd_cmd, 0)))
-			ALT_WARNING(0, "Command playback failed");
+		if (!AltsoundProcessCommand(td.snd_cmd, 0))
+			throw std::runtime_error("Command playback failed");
 
 		// Sleep for the duration specified in msec for each command, except for the last command.
 		if (i < test_data.size() - 1)
@@ -97,7 +99,7 @@ bool playbackCommands(const std::vector<TestData>& test_data)
 
 bool parseCmdFile(InitData& init_data)
 {
-	ALT_DEBUG(0, "BEGIN parseCmdFile");
+	std::cout << "BEGIN parseCmdFile" << std::endl;
 
 	try {
 		std::ifstream inFile(init_data.log_path);
@@ -135,10 +137,12 @@ bool parseCmdFile(InitData& init_data)
 		std::string hexString = extractValue(line);
 		init_data.hardware_gen = (ALTSOUND_HARDWARE_GEN)std::stoull(hexString, nullptr, 16);
 
-		ALT_INFO(1, "Altsound path: %s", init_data.altsound_path.c_str());
-		ALT_INFO(1, "VPinMAME path: %s", init_data.vpm_path.c_str());
-		ALT_INFO(1, "Game name: %s", init_data.game_name.c_str());
-		ALT_INFO(1, "Hardware Gen: 0x%013x", (uint64_t)init_data.hardware_gen);
+		std::cout << "Altsound path: " << init_data.altsound_path << std::endl;
+		std::cout << "VPinMAME path: " << init_data.vpm_path << std::endl;
+		std::cout << "Game name: " << init_data.game_name << std::endl;
+		std::cout << "Hardware Gen: 0x" 
+			<< std::setfill('0') << std::setw(13) 
+			<< std::hex << init_data.hardware_gen << std::endl;
 
 		// The rest of the lines are test data
 		while (std::getline(inFile, line)) {
@@ -177,12 +181,12 @@ bool parseCmdFile(InitData& init_data)
 		}
 
 		inFile.close();
-		ALT_DEBUG(0, "END parseCmdFile");
+		std::cout << "END parseCmdFile" << std::endl;
 		return true;
 	}
 	catch (const std::runtime_error& e) {
-		ALT_ERROR(0, e.what());
-		ALT_DEBUG(0, "END parseCmdFile");
+		std::cout << e.what() << std::endl;
+		std::cout << "END parseCmdFile" << std::endl;
 		return false;
 	}
 }
@@ -191,27 +195,27 @@ bool parseCmdFile(InitData& init_data)
 
 std::pair<bool, InitData> init(const string& log_path)
 {
-	ALT_DEBUG(0, "BEGIN init()");
+	std::cout << "BEGIN init()" << std::endl;
 
 	InitData init_data;
 	init_data.log_path = log_path;
 
 	try {
-		if (!ALT_CALL(parseCmdFile(init_data)))
+		if (!parseCmdFile(init_data))
 			throw std::runtime_error("Failed to parse command file.");
 
-		ALT_INFO(1, "SUCCESS parseCmdFile()");
-		ALT_INFO(1, "Num commands parsed: %d", init_data.test_data.size());
+		std::cout << "SUCCESS parseCmdFile()" << std::endl;
+		std::cout << "Num commands parsed: " << init_data.test_data.size() << std::endl;
 
 		AltsoundInit(init_data.vpm_path, init_data.game_name);
 		AltsoundSetHardwareGen(init_data.hardware_gen);
 
-		ALT_DEBUG(0, "END init()");
+		std::cout << "END init()" << std::endl;
 		return std::make_pair(true, init_data);
 	}
 	catch (const std::runtime_error& e) {
-		ALT_ERROR(0, e.what());
-		ALT_DEBUG(0, "END init()");
+		std::cout << e.what() << std::endl;
+		std::cout << "END init()" << std::endl;
 		return std::make_pair(false, InitData{});
 	}
 }
@@ -228,14 +232,12 @@ int main(int argc, const char* argv[]) {
 		return 1;
 	}
 
-	alog.setLogPath("./");
-	alog.setLogLevel(AltsoundLogger::Level::Debug);
-	alog.enableConsole(true);
+	AltsoundSetLogger("./", ALTSOUND_LOG_LEVEL_DEBUG, true);
 
 	auto init_result = init(argv[1]);
 
 	if (!init_result.first) {
-		ALT_ERROR(0, "Initialization failed.");
+		std::cout << "Initialization failed." << std::endl;
 		return 1;
 	}
 
@@ -243,15 +245,15 @@ int main(int argc, const char* argv[]) {
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Wait for user input
 
 	try {
-		ALT_INFO(1, "Starting playback for \"%s\"...", init_result.second.altsound_path.c_str());
+		std::cout << "Starting playback for \"" << init_result.second.altsound_path << "\"..." << std::endl;
 		if (!playbackCommands(init_result.second.test_data)) {
-			ALT_ERROR(0, "Playback failed");
+			std::cout << "Playback failed" << std::endl;
 			return 1;
 		}
-		ALT_INFO(1, "Playback finished for \"%s\"...", init_result.second.altsound_path.c_str());
+		std::cout << "Playback finished for \"" << init_result.second.altsound_path << "\"..." << std::endl;
 	}
 	catch (const std::exception& e) {
-		ALT_ERROR(0, "Unexpected error during playback: %s", e.what());
+		std::cout << "Unexpected error during playback:" << e.what()  << std::endl;
 		return 1;
 	}
 

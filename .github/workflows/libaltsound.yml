@@ -8,25 +8,44 @@ defaults:
     shell: bash
 
 jobs:
+  version:
+    name: Detect version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        run: |
+          VERSION_MAJOR=$(grep -Eo "ALTSOUND_VERSION_MAJOR\s+[0-9]+" src/altsound.h | grep -Eo "[0-9]+")
+          VERSION_MINOR=$(grep -Eo "ALTSOUND_VERSION_MINOR\s+[0-9]+" src/altsound.h | grep -Eo "[0-9]+")
+          VERSION_PATCH=$(grep -Eo "ALTSOUND_VERSION_PATCH\s+[0-9]+" src/altsound.h | grep -Eo "[0-9]+")
+          TAG="${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}"
+          echo "${TAG}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
   build:
     name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    needs: [ version ]
     strategy:
       fail-fast: false
       matrix:
         include:
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: windows-latest
+            platform: win
+            arch: x86
+          - os: macos-latest
+            platform: macos
+            arch: arm64
           - os: macos-latest
             platform: macos
             arch: x64
-          - os: macos-latest
-            platform: macos
-            arch: arm64
-          - os: macos-latest
-            platform: ios
-            arch: arm64  
-          - os: macos-latest
-            platform: tvos
-            arch: arm64
           - os: ubuntu-latest
             platform: linux
             arch: x64
@@ -36,23 +55,35 @@ jobs:
           - os: ubuntu-latest
             platform: android
             arch: arm64-v8a
+          - os: macos-latest
+            platform: ios
+            arch: arm64
+          - os: macos-latest
+            platform: tvos
+            arch: arm64
     steps:
       - uses: actions/checkout@v4
-      - if: (!((matrix.platform == 'linux') && (matrix.arch == 'aarch64')))
+      - if: (!(matrix.platform == 'linux' && matrix.arch == 'aarch64'))
         name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
         run: |
-          if [[ "$(uname)" == "Darwin" ]]; then
-             NUM_PROCS=$(sysctl -n hw.ncpu)
+          ./platforms/${{ matrix.platform }}/${{ matrix.arch }}/external.sh
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+             if [[ "${{ matrix.arch }}" == "x86" ]]; then
+                cmake -G "Visual Studio 17 2022" -A Win32 -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
+             else
+                cmake -G "Visual Studio 17 2022" -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build 
+             fi
+             cmake --build build --config Release
           else
-             NUM_PROCS=$(nproc)
+             if [[ "$(uname)" == "Darwin" ]]; then
+                NUM_PROCS=$(sysctl -n hw.ncpu)
+             else
+                NUM_PROCS=$(nproc)
+             fi
+             cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
+             cmake --build build -- -j${NUM_PROCS}
           fi
-          cd platforms/${{ matrix.platform }}/${{ matrix.arch }}
-          ./external.sh
-          cp CMakeLists.txt ../../../CMakeLists.txt
-          cd ../../..
-          cmake -DCMAKE_BUILD_TYPE=Release -B build
-          cmake --build build -- -j${NUM_PROCS}
-      - if: (matrix.platform == 'linux') && (matrix.arch == 'aarch64')
+      - if: (matrix.platform == 'linux' && matrix.arch == 'aarch64')
         name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }} (arm runner)
         uses: pguyot/arm-runner-action@v2
         with:
@@ -63,59 +94,112 @@ jobs:
           bind_mount_repository: true
           commands: |
             apt-get update -y --allow-releaseinfo-change
-            apt-get install --no-install-recommends -y pkg-config cmake
+            apt-get install --no-install-recommends -y pkg-config cmake autoconf automake libtool
+            ./platforms/${{ matrix.platform }}/${{ matrix.arch }}/external.sh
             NUM_PROCS=$(nproc)
-            cd platforms/linux/aarch64
-            ./external.sh
-            cp CMakeLists.txt ../../../CMakeLists.txt
-            cd ../../..
-            cmake -DCMAKE_BUILD_TYPE=Release -B build
+            cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
             cmake --build build -- -j${NUM_PROCS}
-      - run: |
+      - name: Prepare artifacts
+        id: artifacts
+        run: |
           mkdir tmp
-          for pattern in "*.a" "*.so" "*.dylib" "*.exe" "altsound_test" "altsound_test_s"; do
-             for file in build/$pattern; do
-                if [ -e "$file" ]; then
-                   cp "$file" tmp
-                fi
-             done
-          done
-      - run: |
-          cd tmp
-          tar -czvf ../libaltsound-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz *
-      - uses: actions/upload-artifact@v3
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+             ARTIFACT_PATH="tmp"
+             if [[ "${{ matrix.arch }}" == "x86" ]]; then
+                cp build/Release/altsound.lib tmp
+                cp build/Release/altsound.dll tmp
+             else
+                cp build/Release/altsound64.lib tmp
+                cp build/Release/altsound64.dll tmp
+             fi
+             cp build/Release/altsound_static.lib tmp
+             cp build/Release/bass.lib tmp
+             cp build/Release/bass.dll tmp
+             cp build/Release/altsound_test_s.exe tmp
+             cp build/Release/altsound_test.exe tmp
+          else
+            ARTIFACT_PATH="libaltsound-${{ needs.version.outputs.tag }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz"
+            if [[ "${{ matrix.platform }}" == "macos" ]]; then
+               cp build/libaltsound.a tmp
+               cp build/libaltsound.*.dylib tmp
+               cp build/libbass.dylib tmp
+               cp build/altsound_test_s tmp
+               cp build/altsound_test tmp
+            elif [[ "${{ matrix.platform }}" == "linux" ]]; then
+               cp build/libaltsound.a tmp
+               cp build/libaltsound.so.* tmp
+               cp build/libbass.so tmp
+               cp build/altsound_test_s tmp
+               cp build/altsound_test tmp
+            elif [[ "${{ matrix.platform }}" == "ios" || "${{ matrix.platform }}" == "tvos" ]]; then
+               cp build/libaltsound.a tmp
+               cp build/libaltsound.*.dylib tmp
+            elif [[ "${{ matrix.platform }}" == "android" ]]; then
+               cp build/libaltsound.a tmp
+               cp build/libaltsound.so tmp
+            fi
+            cd tmp
+            tar -czvf ../${ARTIFACT_PATH} *
+          fi
+          echo "artifact_path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT    
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
-          path: libaltsound-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+          name: libaltsound-${{ needs.version.outputs.tag }}-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ steps.artifacts.outputs.artifact_path }}
 
-  build-macos:
+  post-build:
     runs-on: macos-latest
-    needs: [ build ]
+    needs: [ version, build ]
     name: Build libaltsound-macos
     steps:
       - uses: actions/download-artifact@v3
-      - run: |
-          cd libaltsound-macos-x64
-          tar -xzvf libaltsound-macos-x64.tar.gz
+      - name: Unpack artifacts
+        run: |
+          cd libaltsound-${{ needs.version.outputs.tag }}-macos-x64
+          tar -xzvf libaltsound-${{ needs.version.outputs.tag }}-macos-x64.tar.gz
           cd ..
-          cd libaltsound-macos-arm64
-          tar -xzvf libaltsound-macos-arm64.tar.gz
-      - run: |
+          cd libaltsound-${{ needs.version.outputs.tag }}-macos-arm64
+          tar -xzvf libaltsound-${{ needs.version.outputs.tag }}-macos-arm64.tar.gz
+      - name: Combine macos architectures
+        run: |
           mkdir tmp
-          lipo -create -output tmp/libaltsound.dylib \
-             libaltsound-macos-arm64/libaltsound.dylib \
-             libaltsound-macos-x64/libaltsound.dylib 
+          lipo -create -output tmp/libaltsound-${{ needs.version.outputs.tag }}.dylib \
+             libaltsound-${{ needs.version.outputs.tag }}-macos-arm64/libaltsound.${{ needs.version.outputs.tag }}.dylib \
+             libaltsound-${{ needs.version.outputs.tag }}-macos-x64/libaltsound.${{ needs.version.outputs.tag }}.dylib 
           lipo -create -output tmp/altsound_test \
-             libaltsound-macos-arm64/altsound_test \
-             libaltsound-macos-x64/altsound_test
+             libaltsound-${{ needs.version.outputs.tag }}-macos-arm64/altsound_test \
+             libaltsound-${{ needs.version.outputs.tag }}-macos-x64/altsound_test
           lipo -create -output tmp/altsound_test_s \
-             libaltsound-macos-arm64/altsound_test_s \
-             libaltsound-macos-x64/altsound_test_s
-          cp libaltsound-macos-arm64/libbass.dylib tmp
-      - run: |
+             libaltsound-${{ needs.version.outputs.tag }}-macos-arm64/altsound_test_s \
+             libaltsound-${{ needs.version.outputs.tag }}-macos-x64/altsound_test_s
+      - name: Prepare artifacts
+        run: |
           cd tmp
-          tar -czvf ../libaltsound-macos.tar.gz *
-      - uses: actions/upload-artifact@v3
+          tar -czvf ../libaltsound-${{ needs.version.outputs.tag }}-macos.tar.gz *
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: libaltsound-macos
-          path: libaltsound-macos.tar.gz
+          name: libaltsound-${{ needs.version.outputs.tag }}-macos
+          path: libaltsound-${{ needs.version.outputs.tag }}-macos.tar.gz
+      - name: Package
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          zip -r libaltsound-${{ needs.version.outputs.tag }}-win-x64.zip libaltsound-${{ needs.version.outputs.tag }}-win-x64
+          zip -r libaltsound-${{ needs.version.outputs.tag }}-win-x86.zip libaltsound-${{ needs.version.outputs.tag }}-win-x86
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          draft: true
+          files: |
+            libaltsound-${{ needs.version.outputs.tag }}-win-x64.zip
+            libaltsound-${{ needs.version.outputs.tag }}-win-x86.zip
+            libaltsound-${{ needs.version.outputs.tag }}-macos-arm64/libaltsound-${{ needs.version.outputs.tag }}-macos-arm64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-macos-x64/libaltsound-${{ needs.version.outputs.tag }}-macos-x64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-macos.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-linux-x64/libaltsound-${{ needs.version.outputs.tag }}-linux-x64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-linux-aarch64/libaltsound-${{ needs.version.outputs.tag }}-linux-aarch64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-ios-arm64/libaltsound-${{ needs.version.outputs.tag }}-ios-arm64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-tvos-arm64/libaltsound-${{ needs.version.outputs.tag }}-tvos-arm64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-android-arm64-v8a/libaltsound-${{ needs.version.outputs.tag }}-android-arm64-v8a.tar.gz

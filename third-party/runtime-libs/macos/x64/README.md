@@ -1,1 +1,1 @@
-macos x64 libraries go here
+macos x64 runtime-libs go here

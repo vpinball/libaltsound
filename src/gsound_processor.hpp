@@ -23,8 +23,6 @@
 #include "altsound_processor_base.hpp"
 #include "altsound_logger.hpp"
 
-#include "bass.h"
-
 #include <random>
 
 constexpr int NUM_STREAM_TYPES = 5;

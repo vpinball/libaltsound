@@ -38,10 +38,6 @@
 // Global Data Structures
 // ----------------------------------------------------------------------------
 
-typedef uint32_t DWORD;
-typedef uint32_t HSTREAM;
-typedef uint32_t HSYNC;
-
 typedef struct _cmd_data {
   unsigned int cmd_counter;
   int stored_command;

@@ -11,8 +11,23 @@
 #include "altsound_logger.hpp"
 
 #include <iomanip>
-#include <dirent.h>
 #include <sys/stat.h>
+#ifdef _MSC_VER
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "dirent/dirent.h"
+
+#ifdef __cplusplus
+}
+#endif
+
+
+#else
+#include <dirent.h>
+#endif
 
 extern AltsoundLogger alog;
 
@@ -23,9 +38,8 @@ extern AltsoundLogger alog;
 AltsoundFileParser::AltsoundFileParser(const string& altsound_path_in)
 	: altsound_path(altsound_path_in)
 {
-	if (!altsound_path_in.empty() && altsound_path_in.back() != '/') {
+	if (!altsound_path_in.empty() && altsound_path_in.back() != '/')
 		altsound_path += '/';
-	}
 }
 
 // ---------------------------------------------------------------------------

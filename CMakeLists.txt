@@ -123,6 +123,11 @@ if(BUILD_SHARED)
       VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
    )
 
+   install(TARGETS altsound_shared
+      LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+   )
+   install(FILES src/altsound.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+
    if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
       add_executable(altsound_test
          src/test.cpp
@@ -147,52 +152,57 @@ if(BUILD_SHARED)
    endif()
 endif()
  
- if(BUILD_STATIC)
-    add_library(altsound_static STATIC ${ALTSOUND_SOURCES})
+if(BUILD_STATIC)
+   add_library(altsound_static STATIC ${ALTSOUND_SOURCES})
 
-    target_include_directories(altsound_static PUBLIC ${ALTSOUND_INCLUDE_DIRS})
+   target_include_directories(altsound_static PUBLIC ${ALTSOUND_INCLUDE_DIRS})
 
-    if(PLATFORM STREQUAL "win")
-       set_target_properties(altsound_static PROPERTIES
-          OUTPUT_NAME "altsound_static"
-       )
-    else()
-       set_target_properties(altsound_static PROPERTIES
-          OUTPUT_NAME "altsound"
-       )
-    endif()
+   if(PLATFORM STREQUAL "win")
+      set_target_properties(altsound_static PROPERTIES
+         OUTPUT_NAME "altsound_static"
+      )
+   else()
+      set_target_properties(altsound_static PROPERTIES
+         OUTPUT_NAME "altsound"
+      )
+   endif()
 
-    if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
-       add_executable(altsound_test_s
-          src/test.cpp
-       )
+   install(TARGETS altsound_static
+      LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+   )
+   install(FILES src/altsound.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
-       if(PLATFORM STREQUAL "win")
-          target_link_directories(altsound_test_s PUBLIC
-             third-party/build-libs/${PLATFORM}/${ARCH}
-             third-party/runtime-libs/${PLATFORM}/${ARCH}
-          )
-          target_link_libraries(altsound_test_s PUBLIC altsound_static bass)
-       else()
-          target_link_directories(altsound_test_s PUBLIC
-             third-party/runtime-libs/${PLATFORM}/${ARCH}
-          )
-          target_link_libraries(altsound_test_s PUBLIC altsound_static bass)
-       endif()
+   if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
+      add_executable(altsound_test_s
+         src/test.cpp
+      )
 
-       if(PLATFORM STREQUAL "win")
-          add_custom_command(TARGET altsound_test_s POST_BUILD
-             COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/build-libs/${PLATFORM}/${ARCH}/bass.lib" "$<TARGET_FILE_DIR:altsound_test_s>"
-             COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/bass.dll" "$<TARGET_FILE_DIR:altsound_test_s>"
-          )
-       elseif(PLATFORM STREQUAL "macos")
-          add_custom_command(TARGET altsound_test_s POST_BUILD
-             COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.dylib" "$<TARGET_FILE_DIR:altsound_test_s>"
-          )
-       elseif(PLATFORM STREQUAL "linux")
-          add_custom_command(TARGET altsound_test_s POST_BUILD
-             COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.so" "$<TARGET_FILE_DIR:altsound_test_s>"
-          )
-       endif()
-    endif()
- endif()
+      if(PLATFORM STREQUAL "win")
+         target_link_directories(altsound_test_s PUBLIC
+            third-party/build-libs/${PLATFORM}/${ARCH}
+            third-party/runtime-libs/${PLATFORM}/${ARCH}
+         )
+         target_link_libraries(altsound_test_s PUBLIC altsound_static bass)
+      else()
+         target_link_directories(altsound_test_s PUBLIC
+            third-party/runtime-libs/${PLATFORM}/${ARCH}
+         )
+         target_link_libraries(altsound_test_s PUBLIC altsound_static bass)
+      endif()
+
+      if(PLATFORM STREQUAL "win")
+         add_custom_command(TARGET altsound_test_s POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/build-libs/${PLATFORM}/${ARCH}/bass.lib" "$<TARGET_FILE_DIR:altsound_test_s>"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/bass.dll" "$<TARGET_FILE_DIR:altsound_test_s>"
+         )
+      elseif(PLATFORM STREQUAL "macos")
+         add_custom_command(TARGET altsound_test_s POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.dylib" "$<TARGET_FILE_DIR:altsound_test_s>"
+         )
+      elseif(PLATFORM STREQUAL "linux")
+         add_custom_command(TARGET altsound_test_s POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.so" "$<TARGET_FILE_DIR:altsound_test_s>"
+         )
+      endif()
+   endif()
+endif()

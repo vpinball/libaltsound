@@ -38,8 +38,8 @@ public:
 
 	// Standard constructor
 	AltsoundProcessor(const string& game_name_in,
-		              const string& vpm_path_in,
-		              const string& format_in);
+	                  const string& vpm_path_in,
+	                  const string& format_in);
 
 	// Destructor
 	~AltsoundProcessor();
@@ -53,17 +53,17 @@ public:
 protected:
 
 private: // functions
-	
+
 	//
 	void init() override;
 
 	// parse CSV file and populate sample data
 	bool loadSamples() override;
-	
+
 	// find sample matching provided command
 	unsigned int getSample(const unsigned int cmd_combined_in) override;
-	
-	// 
+
+	//
 	bool stopMusicStream();
 
 	// Stop currently-playing MUSIC stream
@@ -74,28 +74,27 @@ private: // functions
 
 	// process music commands
 	bool process_music(AltsoundStreamInfo* stream_out);
-	
+
 	// process jingle commands
 	bool process_jingle(AltsoundStreamInfo* stream_out);
-	
+
 	// process sfx commands
 	bool process_sfx(AltsoundStreamInfo* stream_out);
 
 	// BASS SYNCPROC callback when jingle samples end
 	static void CALLBACK jingle_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
-	
+
 	// BASS SYNCPROC callback when sfx samples end
 	static void CALLBACK sfx_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
-	
+
 	// BASS SYNCPROC callback when music samples end
 	static void CALLBACK music_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
 
 private: // data
-	
+
 	std::string format;
 	bool is_initialized;
 	bool is_stable; // future use
-	CmdData cmds;
 	std::vector<AltsoundSampleInfo> samples;
 };
 

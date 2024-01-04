@@ -46,8 +46,7 @@ AltsoundProcessor::AltsoundProcessor(const string& game_name_in,
 :AltsoundProcessorBase(game_name_in, vpm_path_in),
   format(format_in),
   is_initialized(false),
-  is_stable(true), // future use
-  cmds()
+  is_stable(true) // future use
 {
 }
 
@@ -161,7 +160,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 
 			// update stream storage
 			channel_stream[new_stream->channel_idx] = new_stream;
-		   
+
 			play_music = true; // Defer playback until the end
 			cur_mus_stream = new_stream;
 			stream = cur_mus_stream->hstream;
@@ -220,7 +219,7 @@ bool AltsoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		if (!BASS_ChannelPlay(stream, 0)) {
 			// Sound playback failed
 			ALT_ERROR(0, "FAILED BASS_ChannelPlay(%u): %s", new_stream->hstream,\
-				  get_bass_err());
+				 get_bass_err());
 		}
 		else {
 			ALT_INFO(0, "SUCCESS BASS_ChannelPlay(%u): CH(%d) CMD(%04X) SAMPLE(%s)", \
@@ -274,7 +273,7 @@ bool AltsoundProcessor::loadSamples()
 
 	string altsound_path = vpm_path; // in base class
 	if (!altsound_path.empty()) {
-		altsound_path += string() + "altsound/" + game_name + '/';
+		altsound_path += "altsound/" + game_name + '/';
 	}
 
 	if (format == "altsound") {
@@ -293,7 +292,7 @@ bool AltsoundProcessor::loadSamples()
 		AltsoundFileParser file_parser(altsound_path);
 		if (!file_parser.parse(samples)) {
 			ALT_ERROR(0, "FAILED AltsoundFileParser::parse()");
-			
+
 			ALT_OUTDENT;
 			ALT_DEBUG(0, "END AltsoundProcessor::loadSamples");
 			return false;

@@ -82,13 +82,13 @@ private: // functions
 	bool process_sfx(AltsoundStreamInfo* stream_out);
 
 	// BASS SYNCPROC callback when jingle samples end
-	static void CALLBACK jingle_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
+	static void ALTSOUNDCALLBACK jingle_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
 
 	// BASS SYNCPROC callback when sfx samples end
-	static void CALLBACK sfx_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
+	static void ALTSOUNDCALLBACK sfx_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
 
 	// BASS SYNCPROC callback when music samples end
-	static void CALLBACK music_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
+	static void ALTSOUNDCALLBACK music_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
 
 private: // data
 

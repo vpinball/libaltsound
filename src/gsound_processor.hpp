@@ -82,7 +82,7 @@ private: // functions
 	bool stopExclusiveStream(const AltsoundSampleType stream_type);
 
 	// BASS SYNCPROC callback whan a stream ends
-	static void CALLBACK common_callback(HSYNC handle, DWORD channel, DWORD data, void* user);
+	static void ALTSOUNDCALLBACK common_callback(HSYNC handle, DWORD channel, DWORD data, void* user);
 
 	// adjust volume of active streams to accommodate current ducking impacts
 	static bool adjustStreamVolumes();

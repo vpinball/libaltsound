@@ -754,7 +754,7 @@ bool GSoundProcessor::stopExclusiveStream(const AltsoundSampleType stream_type)
 
 // ----------------------------------------------------------------------------
 
-void CALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWORD data, void* user)
+void ALTSOUNDCALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD channel, DWORD data, void* user)
 {
 	ALT_DEBUG(0, "\nBEGIN: GSoundProcessor::common_callback()");
 	ALT_INDENT;

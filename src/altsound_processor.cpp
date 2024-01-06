@@ -545,7 +545,7 @@ bool AltsoundProcessor::stopJingleStream()
 
 // ---------------------------------------------------------------------------
 
-void CALLBACK AltsoundProcessor::jingle_callback(HSYNC handle, DWORD channel,\
+void ALTSOUNDCALLBACK AltsoundProcessor::jingle_callback(HSYNC handle, DWORD channel,\
 	                                             DWORD data, void* user)
 {
 	// All SYNCPROC functions run on the same thread, and will block other
@@ -619,7 +619,7 @@ void CALLBACK AltsoundProcessor::jingle_callback(HSYNC handle, DWORD channel,\
 
 // ---------------------------------------------------------------------------
 
-void CALLBACK AltsoundProcessor::sfx_callback(HSYNC handle, DWORD channel,\
+void ALTSOUNDCALLBACK AltsoundProcessor::sfx_callback(HSYNC handle, DWORD channel,\
 	                                          DWORD data, void *user)
 {
 	// All SYNCPROC functions run on the same thread, and will block other
@@ -678,7 +678,7 @@ void CALLBACK AltsoundProcessor::sfx_callback(HSYNC handle, DWORD channel,\
 
 // ---------------------------------------------------------------------------
 
-void CALLBACK AltsoundProcessor::music_callback(HSYNC handle, DWORD channel,\
+void ALTSOUNDCALLBACK AltsoundProcessor::music_callback(HSYNC handle, DWORD channel,\
 	                                            DWORD data, void *user)
 {
 	// All SYNCPROC functions run on the same thread, and will block other

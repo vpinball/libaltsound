@@ -11,10 +11,11 @@
 #define ALTSOUND_MINOR_VERSION ALTSOUND_STR(ALTSOUND_VERSION_MAJOR) "." ALTSOUND_STR(ALTSOUND_VERSION_MINOR)
 
 #ifdef _MSC_VER
-#define ALTSOUND_API extern "C" __declspec(dllexport)
+#define ALTSOUNDAPI extern "C" __declspec(dllexport)
+#define ALTSOUNDCALLBACK __stdcall
 #else
-#define ALTSOUND_API extern "C" __attribute__((visibility("default")))
-#define CALLBACK
+#define ALTSOUNDAPI extern "C" __attribute__((visibility("default")))
+#define ALTSOUNDCALLBACK
 #endif
 
 #include <cstdint>
@@ -54,9 +55,9 @@ typedef enum {
 	ALTSOUND_LOG_LEVEL_UNDEFINED,
 } ALTSOUND_LOG_LEVEL;
 
-ALTSOUND_API void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
-ALTSOUND_API bool AltsoundInit(const string& pinmamePath, const string& gameName);
-ALTSOUND_API void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
-ALTSOUND_API bool AltsoundProcessCommand(const unsigned int cmd, int attenuation);
-ALTSOUND_API void AltsoundPause(bool pause);
-ALTSOUND_API void AltsoundShutdown();
+ALTSOUNDAPI void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
+ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName);
+ALTSOUNDAPI void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
+ALTSOUNDAPI bool AltsoundProcessCommand(const unsigned int cmd, int attenuation);
+ALTSOUNDAPI void AltsoundPause(bool pause);
+ALTSOUNDAPI void AltsoundShutdown();

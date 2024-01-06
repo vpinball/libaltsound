@@ -222,7 +222,7 @@ void altsound_postprocess_commands(const unsigned int combined_cmd)
  * AltsoundSetLogger
  ******************************************************/
 
-ALTSOUND_API void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console)
+ALTSOUNDAPI void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console)
 {
 	alog.setLogPath(logPath);
 	alog.setLogLevel((AltsoundLogger::Level)logLevel);
@@ -233,7 +233,7 @@ ALTSOUND_API void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL lo
  * AltsoundInit
  ******************************************************/
 
-ALTSOUND_API bool AltsoundInit(const string& pinmamePath, const string& gameName)
+ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundInit()");
 	ALT_INDENT;
@@ -322,7 +322,7 @@ ALTSOUND_API bool AltsoundInit(const string& pinmamePath, const string& gameName
  * AltsoundProcessCommand
  ******************************************************/
 
-ALTSOUND_API void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
+ALTSOUNDAPI void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundSetHardwareGen()");
 	ALT_INDENT;
@@ -339,7 +339,7 @@ ALTSOUND_API void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
  * AltsoundProcessCommand
  ******************************************************/
 
-ALTSOUND_API bool AltsoundProcessCommand(const unsigned int cmd, int attenuation)
+ALTSOUNDAPI bool AltsoundProcessCommand(const unsigned int cmd, int attenuation)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessCommand()");
 
@@ -416,7 +416,7 @@ ALTSOUND_API bool AltsoundProcessCommand(const unsigned int cmd, int attenuation
  * AltsoundPause
  ******************************************************/
 
-ALTSOUND_API void AltsoundPause(bool pause)
+ALTSOUNDAPI void AltsoundPause(bool pause)
 {
 	ALT_DEBUG(0, "BEGIN alt_sound_pause()");
 	ALT_INDENT;
@@ -468,7 +468,7 @@ ALTSOUND_API void AltsoundPause(bool pause)
  * AltsoundShutdown
  ******************************************************/
 
-ALTSOUND_API void AltsoundShutdown()
+ALTSOUNDAPI void AltsoundShutdown()
 {
 	ALT_DEBUG(0, "BEGIN AltsoundShutdown()");
 	ALT_INDENT;

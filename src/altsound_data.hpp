@@ -16,6 +16,12 @@
 #pragma once
 #endif
 
+#ifdef _MSC_VER
+#define ALTSOUNDCALLBACK __stdcall
+#else
+#define ALTSOUNDCALLBACK
+#endif
+
 #if _MSC_VER >= 1700
  #ifdef inline
   #undef inline

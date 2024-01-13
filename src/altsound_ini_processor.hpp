@@ -48,16 +48,16 @@ public:
 	bool parse_altsound_ini(const string& path_in);
 
 	// Return parsed flag indicating whether to enable sound command recording
-	const bool recordSoundCmds() const;
+	bool recordSoundCmds() const;
 
 	// Return parsed AltsoundFormat type
 	const string& getAltsoundFormat() const;
 
 	// Return parsed ROM volume control flag
-	const bool usingRomVolumeControl() const;
+	bool usingRomVolumeControl() const;
 
 	// Return parsed skip count value
-	const unsigned int getSkipCount() const;
+	unsigned int getSkipCount() const;
 
 private: // functions
 	
@@ -99,7 +99,7 @@ private: // data
 // Inline functions
 // ----------------------------------------------------------------------------
 
-inline const bool AltsoundIniProcessor::recordSoundCmds() const {
+inline bool AltsoundIniProcessor::recordSoundCmds() const {
 	return record_sound_commands;
 }
 
@@ -112,13 +112,13 @@ inline const string& AltsoundIniProcessor::getAltsoundFormat() const {
 
 // ----------------------------------------------------------------------------
 
-inline const bool AltsoundIniProcessor::usingRomVolumeControl() const {
+inline bool AltsoundIniProcessor::usingRomVolumeControl() const {
 	return rom_volume_control;
 }
 
 // ----------------------------------------------------------------------------
 
-inline const unsigned int AltsoundIniProcessor::getSkipCount() const {
+inline unsigned int AltsoundIniProcessor::getSkipCount() const {
 	return skip_count;
 }
 

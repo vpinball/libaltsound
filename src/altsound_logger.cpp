@@ -24,12 +24,11 @@ thread_local int AltsoundLogger::base_indent = 0;
 // ----------------------------------------------------------------------------
 
 AltsoundLogger::AltsoundLogger()
-: log_level(None), console(false)
 {
 }
 
 AltsoundLogger::AltsoundLogger(const string& filename)
-: log_level(Debug), out(filename), console(true)
+: log_level(Debug), console(true), out(filename)
 {
 }
 

@@ -19,19 +19,19 @@ using std::string;
 
 class AltsoundFileParser {
 public:
-	
+
 	// Standard constructor
 	explicit AltsoundFileParser(const string& altsound_path_in);
 
 	bool parse(std::vector<AltsoundSampleInfo>& samples_out);
 
 protected:
-	
+
 	// Default constructor
-	AltsoundFileParser() {};
+	AltsoundFileParser() {}
 
 private: // functions
-	
+
 	float parseFileValue(const string& filePath);
 
 private: // data

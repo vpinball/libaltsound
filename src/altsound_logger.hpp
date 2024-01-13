@@ -118,11 +118,11 @@ private:  // methods
 	// main logging method
 	template<typename... Args>
 	void log(int indentLevel, Level lvl, const string& format, Args... args) {
-		string formattedString = fmt::sprintf(format, args...);
+		const string formattedString = fmt::sprintf(format, args...);
 		std::stringstream message;
 		message << string(indentLevel * indentWidth, ' ')
 			<< toString(lvl) << ": " << formattedString << "\n";
-		string finalMessage = message.str();
+		const string finalMessage = message.str();
 
 		if (out.is_open()) {
 			out << finalMessage;
@@ -152,7 +152,7 @@ private: // data
 
 	// Thread-local storage for the base indentation level
 	static thread_local int base_indent;
-	Level log_level;
+	Level log_level = None;
 	bool console = false;
 	static constexpr int indentWidth = 4;
 	std::ofstream out;

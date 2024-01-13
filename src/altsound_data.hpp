@@ -130,10 +130,10 @@ typedef struct _altsound_sample_info {
 // Structure for holding G-Sound sample data
 typedef struct _gsound_sample_info {
 	unsigned int id = 0;
-	std::string type = "";
+	std::string type;
 	float duck = 1.0f;
 	float gain = 1.0f;
-	std::string fname = "";
+	std::string fname;
 	bool loop = false;
 	unsigned int ducking_profile = 0;
 } GSoundSampleInfo;

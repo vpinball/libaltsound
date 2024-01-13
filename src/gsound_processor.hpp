@@ -51,7 +51,7 @@ public:
 	bool stopMusic() override;
 
 	// Process ROM commands to the sound board
-	bool handleCmd(const unsigned int cmd_in) override;
+	bool handleCmd(const unsigned int cmd_combined_in) override;
 
 	// DEBUG helper fns to print all behavior data
 	static void printBehaviorData();

@@ -255,7 +255,7 @@ ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName)
 	if (szPinmamePath.back() != '/')
 		szPinmamePath += '/';
 
-	string szAltSoundPath = szPinmamePath + "altsound/" + gameName + '/';
+	const string szAltSoundPath = szPinmamePath + "altsound/" + gameName + '/';
 
 	// parse .ini file
 	AltsoundIniProcessor ini_proc;

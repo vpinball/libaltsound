@@ -42,10 +42,10 @@ public:
 	                  const string& format_in);
 
 	// Destructor
-	~AltsoundProcessor();
+	~AltsoundProcessor() override;
 
 	// Process ROM commands to the sound board
-	bool handleCmd(const unsigned int cmd_in) override;
+	bool handleCmd(const unsigned int cmd_combined_in) override;
 
 	// External interface to stop currently-playing MUSIC stream
 	bool stopMusic() override;

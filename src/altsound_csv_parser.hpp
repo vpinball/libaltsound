@@ -42,10 +42,10 @@ public: // data
 protected:
 
 	// Default constructor
-	AltsoundCsvParser() {/* not used */ };
+	AltsoundCsvParser() {/* not used */ }
 
 	// Copy constructor
-	AltsoundCsvParser(AltsoundCsvParser&) {/* not used */ };
+	AltsoundCsvParser(AltsoundCsvParser&) {/* not used */ }
 
 private: // functions
 

@@ -73,7 +73,7 @@ public:
 
 	// command skip count accessor/mutator
 	void setSkipCount(const unsigned int skip_count_in);
-	const unsigned int getSkipCount() const;
+	unsigned int getSkipCount() const;
 	
 public: // data
 	
@@ -189,7 +189,7 @@ inline float AltsoundProcessorBase::getGlobalVol() {
 
 // ----------------------------------------------------------------------------
 
-inline const unsigned int AltsoundProcessorBase::getSkipCount() const {
+inline unsigned int AltsoundProcessorBase::getSkipCount() const {
 	return skip_count;
 }
 

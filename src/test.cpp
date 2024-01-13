@@ -234,7 +234,7 @@ int main(int argc, const char* argv[]) {
 
 	AltsoundSetLogger("./", ALTSOUND_LOG_LEVEL_DEBUG, true);
 
-	auto init_result = init(argv[1]);
+	const auto init_result = init(argv[1]);
 
 	if (!init_result.first) {
 		std::cout << "Initialization failed." << std::endl;

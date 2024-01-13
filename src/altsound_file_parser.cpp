@@ -276,5 +276,5 @@ float AltsoundFileParser::parseFileValue(const string& filePath)
 		return -1.0f;
 	}
 
-	return tmpValue >= 100 ? 1.0f : tmpValue < 0.0f ? 0.0f : (float)tmpValue / 100.f;
+	return tmpValue >= 100 ? 1.0f : tmpValue <= 0 ? 0.0f : (float)tmpValue / 100.f;
 }

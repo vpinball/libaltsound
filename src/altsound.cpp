@@ -164,6 +164,27 @@ void altsound_preprocess_commands(int cmd)
 			break;
 		}
 
+		// DAR@20240207 Seems to be 8-bit commands
+		case ALTSOUND_HARDWARE_GEN_GTS80/*A*/: {  // Gottlieb System 80A
+			ALT_DEBUG(0, "Hardware Generation: GTS80A");
+
+			// DAR@29249297 It appears that this system sends 0x00 commands as a clock
+			//              signal, since we recieve a ridiculous number of them.
+			//              Filter them out
+			if (cmd == 0x00) { // handle 0x00
+				g_cmdData.stored_command = 0;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 1;
+			}
+			else {
+				g_cmdData.stored_command = 0;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 0;
+			}
+
+			break;
+		}
+
 		default: break;
 	}
 

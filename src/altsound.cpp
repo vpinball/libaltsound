@@ -39,8 +39,13 @@ void altsound_preprocess_commands(int cmd)
 		case ALTSOUND_HARDWARE_GEN_WPC95: {
 			ALT_DEBUG(0, "Hardware Generation: WPCDCS, WPCSECURITY, WPC95DCS, WPC95");
 
-			if (((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA)) // change volume?
-				|| ((g_cmdData.cmd_buffer[2] == 0x00) && (g_cmdData.cmd_buffer[1] == 0x00) && (g_cmdData.cmd_buffer[0] == 0x00))) { // glitch in command buffer?
+			if (((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA))) { // change volume?
+				// DAR@20240208 The check below is dangerous.  If this is still a 
+				//              problem, it would be better to revisit it when it
+				//              reappears to implement a more robust solution that
+				//              works for all systems
+				//              See https://github.com/vpinball/pinmame/issues/220
+				//|| ((g_cmdData.cmd_buffer[2] == 0x00) && (g_cmdData.cmd_buffer[1] == 0x00) && (g_cmdData.cmd_buffer[0] == 0x00))) { // glitch in command buffer?
 				if ((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) { // change volume op (following first byte = volume, second = ~volume, if these don't match: ignore)
 					if (g_pProcessor->romControlsVol()) {
 						g_pProcessor->setGlobalVol(std::min((float)g_cmdData.cmd_buffer[1] / 127.f, 1.0f));

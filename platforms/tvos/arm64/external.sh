@@ -9,6 +9,9 @@ cd external
 #
 # download bass24 framework and copy to platform/arch/frameworks
 #
+# Note: The BASS library needs to be replaced with the tvOS version.
+# Leaving the iOS version here so we can test the compile for static builds. Shared builds will fail when linking. 
+#
 
 mkdir bass
 cd bass

@@ -59,6 +59,9 @@ jobs:
             platform: ios
             arch: arm64
           - os: macos-latest
+            platform: ios-simulator
+            arch: arm64
+          - os: macos-latest
             platform: tvos
             arch: arm64
     steps:
@@ -80,7 +83,11 @@ jobs:
              else
                 NUM_PROCS=$(nproc)
              fi
-             cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
+             if [[ "${{ matrix.platform }}" == "tvos" ]]; then
+                cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -DBUILD_SHARED=OFF -B build
+             else
+                cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
+             fi
              cmake --build build -- -j${NUM_PROCS}
           fi
       - if: (matrix.platform == 'linux' && matrix.arch == 'aarch64')
@@ -131,9 +138,11 @@ jobs:
                cp build/libbass.so tmp
                cp build/altsound_test_s tmp
                cp build/altsound_test tmp
-            elif [[ "${{ matrix.platform }}" == "ios" || "${{ matrix.platform }}" == "tvos" ]]; then
+            elif [[ "${{ matrix.platform }}" == "ios" || "${{ matrix.platform }}" == "ios-simulator" ]]; then
                cp build/libaltsound.a tmp
                cp build/libaltsound.*.dylib tmp
+            elif [[ "${{ matrix.platform }}" == "tvos" ]]; then
+               cp build/libaltsound.a tmp
             elif [[ "${{ matrix.platform }}" == "android" ]]; then
                cp build/libaltsound.a tmp
                cp build/libaltsound.so tmp
@@ -143,7 +152,7 @@ jobs:
           fi
           echo "artifact_path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT    
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libaltsound-${{ needs.version.outputs.tag }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: ${{ steps.artifacts.outputs.artifact_path }}
@@ -153,7 +162,7 @@ jobs:
     needs: [ version, build ]
     name: Build libaltsound-macos
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
       - name: Unpack artifacts
         run: |
           cd libaltsound-${{ needs.version.outputs.tag }}-macos-x64
@@ -178,7 +187,7 @@ jobs:
           cd tmp
           tar -czvf ../libaltsound-${{ needs.version.outputs.tag }}-macos.tar.gz *
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: libaltsound-${{ needs.version.outputs.tag }}-macos
           path: libaltsound-${{ needs.version.outputs.tag }}-macos.tar.gz
@@ -201,5 +210,6 @@ jobs:
             libaltsound-${{ needs.version.outputs.tag }}-linux-x64/libaltsound-${{ needs.version.outputs.tag }}-linux-x64.tar.gz
             libaltsound-${{ needs.version.outputs.tag }}-linux-aarch64/libaltsound-${{ needs.version.outputs.tag }}-linux-aarch64.tar.gz
             libaltsound-${{ needs.version.outputs.tag }}-ios-arm64/libaltsound-${{ needs.version.outputs.tag }}-ios-arm64.tar.gz
+            libaltsound-${{ needs.version.outputs.tag }}-ios-simulator-arm64/libaltsound-${{ needs.version.outputs.tag }}-ios-simulator-arm64.tar.gz
             libaltsound-${{ needs.version.outputs.tag }}-tvos-arm64/libaltsound-${{ needs.version.outputs.tag }}-tvos-arm64.tar.gz
             libaltsound-${{ needs.version.outputs.tag }}-android-arm64-v8a/libaltsound-${{ needs.version.outputs.tag }}-android-arm64-v8a.tar.gz

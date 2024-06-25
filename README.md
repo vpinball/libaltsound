@@ -82,10 +82,17 @@ cmake -DPLATFORM=ios -DARCH=arm64 -DCMAKE_BUILD_TYPE=Release -B build
 cmake --build build
 ```
 
+#### iOS Simulator (arm64)
+```shell
+platforms/ios-simulator/arm64/external.sh
+cmake -DPLATFORM=ios-simulator -DARCH=arm64 -DCMAKE_BUILD_TYPE=Release -B build
+cmake --build build
+```
+
 #### tvOS (arm64)
 ```shell
 platforms/tvos/arm64/external.sh
-cmake -DPLATFORM=tvos -DARCH=arm64 -DCMAKE_BUILD_TYPE=Release -B build
+cmake -DPLATFORM=tvos -DARCH=arm64 -DBUILD_SHARED=OFF -DCMAKE_BUILD_TYPE=Release -B build
 cmake --build build
 ```
 

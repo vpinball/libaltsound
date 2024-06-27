@@ -201,7 +201,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		else {
 			ALT_ERROR(1, "GSoundProcessor is unstable. Processing skipped");
 		}
-		
+
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: GSoundProcessor::handleCmd()");
 		return false;
@@ -254,7 +254,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		}
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processMusic()");
-			
+
 			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
@@ -267,7 +267,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		}
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processSfx()");
-			
+
 			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
@@ -281,7 +281,7 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		}
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processCallout()");
-			
+
 			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
@@ -309,14 +309,14 @@ bool GSoundProcessor::handleCmd(const unsigned int cmd_combined_in)
 		}
 		else {
 			ALT_ERROR(1, "FAILED GSoundProcessor::processOverlay()");
-			
+
 			ALT_OUTDENT;
 			ALT_DEBUG(0, "END GSoundProcessor::handleCmd()");
 			return false;
 		}
 		break;
-     default:
-        break;
+	default:
+		break;
 	}
 
 	// set volume for active streams
@@ -789,7 +789,7 @@ void ALTSOUNDCALLBACK GSoundProcessor::common_callback(HSYNC handle, DWORD chann
 		behavior = music_behavior;
 		// DAR@20230706
 		// This callback gets hit when the sample ends even if it's set to loop.
-		// If it's cleaned up here, it will not loop. This not desirable.  A future
+		// If it's cleaned up here, it will not loop. This is not desirable.  A future
 		// use may be to create an independent music callback that can limit the
 		// number of loops.
 		//cur_mus_stream_idx = UNSET_IDX;

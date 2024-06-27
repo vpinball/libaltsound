@@ -160,13 +160,13 @@ bool AltsoundProcessorBase::findFreeChannel(unsigned int& channel_out)
 	if (it != channel_stream.end()) {
 		channel_out = static_cast<unsigned int>(std::distance(channel_stream.begin(), it));
 		ALT_INFO(1, "Found free channel: %02u", channel_out);
-		
+
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: AltsoundProcessorBase::findFreeChannel()");
 		return true;
 	}
 	ALT_ERROR(1, "No free channels available!");
-	
+
 	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessorBase::findFreeChannel()");
 	return false;
@@ -202,6 +202,20 @@ bool AltsoundProcessorBase::setStreamVolume(HSTREAM stream_in, const float vol_i
 
 // ----------------------------------------------------------------------------
 
+float AltsoundProcessorBase::getStreamVolume(HSTREAM stream_in)
+{
+	if (stream_in == BASS_NO_STREAM)
+		return -FLT_MAX;
+
+	float vol;
+	if (!BASS_ChannelGetAttribute(stream_in, BASS_ATTRIB_VOL, &vol))
+		return -FLT_MAX;
+	else
+		return vol/(global_vol * master_vol);
+}
+
+// ----------------------------------------------------------------------------
+
 bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* stream_out)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundProcessorBase::createStream()");
@@ -209,10 +223,10 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 
 	const std::string short_path = getShortPath(stream_out->sample_path);
 	unsigned int ch_idx;
-	
+
 	if (!ALT_CALL(findFreeChannel(ch_idx))) {
 		ALT_ERROR(1, "FAILED AltsoundProcessorBase::findFreeChannel()");
-		
+
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundProcessorBase::createStream()");
 		return false;
@@ -227,7 +241,7 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 	if (hstream == BASS_NO_STREAM) {
 		// Failed to create stream
 		ALT_ERROR(1, "FAILED BASS_StreamCreateFile(%s): %s", short_path.c_str(), get_bass_err());
-		
+
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END: AltsoundProcessorBase::createStream()");
 		return false;

@@ -488,7 +488,7 @@ bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section
 //
 // Once the .ini file is created, it can be modified to adjust preference.
 //
-string AltsoundIniProcessor::get_altound_format(const string& path_in)
+string AltsoundIniProcessor::get_altsound_format(const string& path_in)
 {
 	ALT_DEBUG(0, "BEGIN get_altsound_format()");
 	ALT_INDENT;
@@ -550,7 +550,7 @@ bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
 	ALT_DEBUG(0, "BEGIN AltsoundIniProcessor::create_altsound_ini()");
 	ALT_INDENT;
 
-	const string format = get_altound_format(path_in);
+	const string format = get_altsound_format(path_in);
 
 	if (format.empty()) {
 		ALT_ERROR(0, "FAILED AltsoundIniProcessor::get_altsound_format()");

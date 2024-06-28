@@ -55,8 +55,8 @@ void altsound_preprocess_commands(int cmd)
 				for (int i = 0; i < ALT_MAX_CMDS; ++i)
 					g_cmdData.cmd_buffer[i] = ~0;
 
-				*g_cmdData.cmd_counter = 0;
-				*g_cmdData.cmd_filter = 1;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 1;
 			}
 			else
 			if ((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xC2)) // DCS software major version number
@@ -64,8 +64,8 @@ void altsound_preprocess_commands(int cmd)
 				for (int i = 0; i < ALT_MAX_CMDS; ++i)
 					g_cmdData.cmd_buffer[i] = ~0;
 
-				*g_cmdData.cmd_counter = 0;
-				*g_cmdData.cmd_filter = 1;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 1;
 			}
 			else
 			if ((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xC3)) // DCS software minor version number
@@ -73,8 +73,8 @@ void altsound_preprocess_commands(int cmd)
 				for (int i = 0; i < ALT_MAX_CMDS; ++i)
 					g_cmdData.cmd_buffer[i] = ~0;
 
-				*g_cmdData.cmd_counter = 0;
-				*g_cmdData.cmd_filter = 1;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 1;
 			}
 			else
 			if ((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] >= 0xBA) && (g_cmdData.cmd_buffer[2] <= 0xC1) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) // mystery command, see http://mjrnet.org/pinscape/dcsref/DCS_format_reference.html#SpecialCommands
@@ -82,8 +82,8 @@ void altsound_preprocess_commands(int cmd)
 				for (int i = 0; i < ALT_MAX_CMDS; ++i)
 					g_cmdData.cmd_buffer[i] = ~0;
 
-				*g_cmdData.cmd_counter = 0;
-				*g_cmdData.cmd_filter = 1;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 1;
 			}
 			else
 			if (((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA))) { // change master volume?

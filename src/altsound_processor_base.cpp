@@ -13,6 +13,7 @@
 
 #include <iomanip>
 #include <chrono>
+#include <cfloat>
 
 extern AltsoundLogger alog;
 extern StreamArray channel_stream;

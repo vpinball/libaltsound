@@ -5,12 +5,14 @@ set(ARCH "x64" CACHE STRING "Arch")
 
 option(BUILD_SHARED "Option to build shared library" ON)
 option(BUILD_STATIC "Option to build static library" ON)
+option(POST_BUILD_COPY_EXT_LIBS "Option to copy external libraries to build directory" ON)
 
 message(STATUS "PLATFORM: ${PLATFORM}")
 message(STATUS "ARCH: ${ARCH}")
 
 message(STATUS "BUILD_SHARED: ${BUILD_SHARED}")
 message(STATUS "BUILD_STATIC: ${BUILD_STATIC}")
+message(STATUS "POST_BUILD_COPY_EXT_LIBS: ${POST_BUILD_COPY_EXT_LIBS}")
 
 if(PLATFORM STREQUAL "macos")
    set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
@@ -147,19 +149,21 @@ if(BUILD_SHARED)
 
       target_link_libraries(altsound_test PUBLIC altsound_shared)
 
-      if(PLATFORM STREQUAL "win")
-         add_custom_command(TARGET altsound_test POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/build-libs/${PLATFORM}/${ARCH}/bass.lib" "$<TARGET_FILE_DIR:altsound_test>"
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/bass.dll" "$<TARGET_FILE_DIR:altsound_test>"
-         )
-      elseif(PLATFORM STREQUAL "macos")
-         add_custom_command(TARGET altsound_test POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.dylib" "$<TARGET_FILE_DIR:altsound_test>"
-         )
-      elseif(PLATFORM STREQUAL "linux")
-         add_custom_command(TARGET altsound_test POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.so" "$<TARGET_FILE_DIR:altsound_test>"
-         )
+      if(POST_BUILD_COPY_EXT_LIBS)
+         if(PLATFORM STREQUAL "win")
+            add_custom_command(TARGET altsound_test POST_BUILD
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/build-libs/${PLATFORM}/${ARCH}/bass.lib" "$<TARGET_FILE_DIR:altsound_test>"
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/bass.dll" "$<TARGET_FILE_DIR:altsound_test>"
+            )
+         elseif(PLATFORM STREQUAL "macos")
+            add_custom_command(TARGET altsound_test POST_BUILD
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.dylib" "$<TARGET_FILE_DIR:altsound_test>"
+            )
+         elseif(PLATFORM STREQUAL "linux")
+            add_custom_command(TARGET altsound_test POST_BUILD
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.so" "$<TARGET_FILE_DIR:altsound_test>"
+            )
+         endif()
       endif()
    endif()
 endif()
@@ -202,19 +206,21 @@ if(BUILD_STATIC)
          target_link_libraries(altsound_test_s PUBLIC altsound_static bass)
       endif()
 
-      if(PLATFORM STREQUAL "win")
-         add_custom_command(TARGET altsound_test_s POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/build-libs/${PLATFORM}/${ARCH}/bass.lib" "$<TARGET_FILE_DIR:altsound_test_s>"
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/bass.dll" "$<TARGET_FILE_DIR:altsound_test_s>"
-         )
-      elseif(PLATFORM STREQUAL "macos")
-         add_custom_command(TARGET altsound_test_s POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.dylib" "$<TARGET_FILE_DIR:altsound_test_s>"
-         )
-      elseif(PLATFORM STREQUAL "linux")
-         add_custom_command(TARGET altsound_test_s POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.so" "$<TARGET_FILE_DIR:altsound_test_s>"
-         )
+      if(POST_BUILD_COPY_EXT_LIBS)
+         if(PLATFORM STREQUAL "win")
+            add_custom_command(TARGET altsound_test_s POST_BUILD
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/build-libs/${PLATFORM}/${ARCH}/bass.lib" "$<TARGET_FILE_DIR:altsound_test_s>"
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/bass.dll" "$<TARGET_FILE_DIR:altsound_test_s>"
+            )
+         elseif(PLATFORM STREQUAL "macos")
+            add_custom_command(TARGET altsound_test_s POST_BUILD
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.dylib" "$<TARGET_FILE_DIR:altsound_test_s>"
+            )
+         elseif(PLATFORM STREQUAL "linux")
+            add_custom_command(TARGET altsound_test_s POST_BUILD
+               COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_SOURCE_DIR}/third-party/runtime-libs/${PLATFORM}/${ARCH}/libbass.so" "$<TARGET_FILE_DIR:altsound_test_s>"
+            )
+         endif()
       endif()
    endif()
 endif()

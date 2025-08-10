@@ -60,10 +60,10 @@ public:
 	unsigned int getSkipCount() const;
 
 private: // functions
-	
+
 	// helper function to parse behavior variable values
 	bool parseBehaviorValue(const IniSection& section, const string& key, std::bitset<5>& behavior);
-	
+
 	// helper function to parse behavior volume values
 	bool parseVolumeValue(const IniSection& section, const string& key, float& volume);
 

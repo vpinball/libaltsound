@@ -22,7 +22,7 @@
 
 #include "altsound_data.hpp"
 
-#include "bass.h"
+#include "miniaudio_private.h"
 
 #include <mutex>
 
@@ -85,7 +85,7 @@ protected: // functions
 	// find sample matching provided command
 	virtual unsigned int getSample(const unsigned int cmd_combined_in) = 0;
 
-	// Create stream for BASS playback
+	// Create stream for miniaudio playback
 	bool createStream(void* syncproc_in, AltsoundStreamInfo* stream_out);
 
 	// get short path of current game <gamename>/subpath/filename
@@ -95,19 +95,19 @@ protected: // functions
 	bool stopAllStreams();
 
 	// stop playback of provided stream handle
-	static bool stopStream(HSTREAM hstream_in);
+	static bool stopStream(unsigned int hstream);
 
-	// free BASS resources of provided stream handle
-	static bool freeStream(const HSTREAM stream_in);
+	// free miniaudio resources of provided stream handle
+	static bool freeStream(unsigned int hstream);
 
 	// find available sound channel for sample playback
 	static bool findFreeChannel(unsigned int& channel_out);
 
 	// set volume on provided stream
-	static bool setStreamVolume(HSTREAM stream_in, const float vol_in);
+	static bool setStreamVolume(unsigned int hstream, const float vol_in);
 
 	// get volume on provided stream, -FLT_MAX on error
-	static float getStreamVolume(HSTREAM stream_in);
+	static float getStreamVolume(unsigned int hstream);
 
 	// Return ROM shortname
 	const string& getGameName();
@@ -119,7 +119,7 @@ protected: // functions
 	bool startLogging(const string& gameName);
 
 protected: // data
-	
+
 	string game_name;
 	string vpm_path;
 

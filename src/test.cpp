@@ -2,10 +2,10 @@
 // test.cpp
 // 07/23/23 - Dave Roscoe
 //
-// Standalone executive for AltSound for use by devs and authors.  This 
+// Standalone executive for AltSound for use by devs and authors.  This
 // executable links in all AltSound format processing, ingests sound
 // commands from a file, and plays them through the same libraries used for
-// VPinMAME.  The command file can be generated from live gameplay or 
+// VPinMAME.  The command file can be generated from live gameplay or
 // created by hand, to test scripted sound playback scenarios.  Authors can
 // use this to test mix levels of one or more sounds in any combination to
 // finalize the AltSound mix for a table.  This is particularly useful when
@@ -26,6 +26,10 @@
 // license:<TODO>
 // ---------------------------------------------------------------------------
 
+#ifdef _WIN32
+#define NOMINMAX
+#endif
+
 #include "altsound.h"
 
 #include <thread>
@@ -37,6 +41,9 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
+
+#define MINIAUDIO_IMPLEMENTATION
+#include <miniaudio/miniaudio.h>
 
 using std::string;
 
@@ -59,6 +66,96 @@ struct InitData {
 	ALTSOUND_HARDWARE_GEN hardware_gen;
 };
 
+static ma_device g_device;
+static ma_device_config g_deviceConfig;
+
+#include <mutex>
+#include <queue>
+#include <vector>
+
+struct AltsoundAudioBuffer {
+	std::vector<float> data;
+	size_t frameCount;
+	uint32_t sampleRate;
+	uint32_t channels;
+};
+
+static std::queue<AltsoundAudioBuffer> g_audioQueue;
+static std::mutex g_audioQueueMutex;
+static const size_t MAX_QUEUE_SIZE = 10;
+
+void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+	(void)pDevice;
+	(void)pInput;
+
+	float* output = (float*)pOutput;
+	const uint32_t channels = pDevice->playback.channels;
+	
+	std::unique_lock<std::mutex> lock(g_audioQueueMutex);
+	
+	if (g_audioQueue.empty()) {
+		memset(output, 0, frameCount * channels * sizeof(float));
+		return;
+	}
+	
+	size_t outIndex = 0;
+	size_t framesRemaining = frameCount;
+	
+	while (framesRemaining > 0 && !g_audioQueue.empty()) {
+		AltsoundAudioBuffer& buffer = g_audioQueue.front();
+		
+		if (buffer.data.empty()) {
+			g_audioQueue.pop();
+			continue;
+		}
+		
+		const size_t bufferFrames = buffer.data.size() / channels;
+		const size_t framesToCopy = std::min(framesRemaining, bufferFrames);
+		const size_t samplesToCopy = framesToCopy * channels;
+		
+		memcpy(&output[outIndex], buffer.data.data(), samplesToCopy * sizeof(float));
+		
+		outIndex += samplesToCopy;
+		framesRemaining -= framesToCopy;
+		
+		if (framesToCopy >= bufferFrames) {
+			g_audioQueue.pop();
+		} else {
+			buffer.data.erase(buffer.data.begin(), buffer.data.begin() + samplesToCopy);
+		}
+	}
+	
+	if (framesRemaining > 0) {
+		memset(&output[outIndex], 0, framesRemaining * channels * sizeof(float));
+	}
+}
+
+void audio_callback_bridge(const float* samples, size_t frameCount, uint32_t sampleRate, uint32_t channels, void* userData)
+{
+	(void)userData;
+
+	if (!samples || frameCount == 0 || channels == 0)
+		return;
+
+	std::lock_guard<std::mutex> lock(g_audioQueueMutex);
+	
+	if (g_audioQueue.size() >= MAX_QUEUE_SIZE) {
+		return;
+	}
+
+	AltsoundAudioBuffer buffer;
+	buffer.frameCount = frameCount;
+	buffer.sampleRate = sampleRate;
+	buffer.channels = channels;
+	
+	const size_t totalSamples = frameCount * channels;
+	buffer.data.reserve(totalSamples);
+	buffer.data.assign(samples, samples + totalSamples);
+
+	g_audioQueue.emplace(std::move(buffer));
+}
+
 // ----------------------------------------------------------------------------
 
 string extractValue(const string& line) {
@@ -79,8 +176,10 @@ bool playbackCommands(const std::vector<TestData>& test_data)
 {
 	for (size_t i = 0; i < test_data.size(); ++i) {
 		const TestData& td = test_data[i];
-		if (!AltsoundProcessCommand(td.snd_cmd, 0))
-			throw std::runtime_error("Command playback failed");
+		if (!AltSoundProcessCommand(td.snd_cmd, 0)) {
+			std::cout << "Command playback failed" << std::endl;
+			// throw std::runtime_error("Command playback failed");
+		}
 
 		// Sleep for the duration specified in msec for each command, except for the last command.
 		if (i < test_data.size() - 1)
@@ -207,8 +306,35 @@ std::pair<bool, InitData> init(const string& log_path)
 		std::cout << "SUCCESS parseCmdFile()" << std::endl;
 		std::cout << "Num commands parsed: " << init_data.test_data.size() << std::endl;
 
-		AltsoundInit(init_data.vpm_path, init_data.game_name);
-		AltsoundSetHardwareGen(init_data.hardware_gen);
+        g_deviceConfig = ma_device_config_init(ma_device_type_playback);
+        g_deviceConfig.playback.format = ma_format_f32;
+        g_deviceConfig.playback.channels = 2;
+        g_deviceConfig.sampleRate = 44100;
+        g_deviceConfig.dataCallback = data_callback;
+        g_deviceConfig.periodSizeInFrames = 512;
+        g_deviceConfig.periods = 3;
+
+        ma_result result = ma_device_init(NULL, &g_deviceConfig, &g_device);
+        if (result != MA_SUCCESS) {
+            std::cout << "Failed to initialize miniaudio device: " << result << std::endl;
+            throw std::runtime_error("Failed to initialize miniaudio device");
+        }
+
+        const uint32_t bufferSize = g_device.playback.internalPeriodSizeInFrames;
+
+        AltSoundInit(init_data.vpm_path, init_data.game_name, g_device.sampleRate, g_device.playback.channels, bufferSize);
+        AltSoundSetHardwareGen(init_data.hardware_gen);
+
+        result = ma_device_start(&g_device);
+        if (result != MA_SUCCESS) {
+            std::cout << "Failed to start miniaudio device: " << result << std::endl;
+            ma_device_uninit(&g_device);
+            throw std::runtime_error("Failed to start miniaudio device");
+        }
+
+        AltSoundSetAudioCallback(audio_callback_bridge, nullptr);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		std::cout << "END init()" << std::endl;
 		return std::make_pair(true, init_data);
@@ -232,17 +358,19 @@ int main(int argc, const char* argv[]) {
 		return 1;
 	}
 
-	AltsoundSetLogger("./", ALTSOUND_LOG_LEVEL_DEBUG, true);
+	AltSoundSetLogger("./", ALTSOUND_LOG_LEVEL_DEBUG, true);
 
 	const auto init_result = init(argv[1]);
 
 	if (!init_result.first) {
 		std::cout << "Initialization failed." << std::endl;
+		ma_device_stop(&g_device);
+		ma_device_uninit(&g_device);
 		return 1;
 	}
 
-	std::cout << "Press Enter to begin playback..." << std::endl;
-	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Wait for user input
+	//std::cout << "Press Enter to begin playback..." << std::endl;
+	//std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Wait for user input
 
 	try {
 		std::cout << "Starting playback for \"" << init_result.second.altsound_path << "\"..." << std::endl;
@@ -254,12 +382,18 @@ int main(int argc, const char* argv[]) {
 	}
 	catch (const std::exception& e) {
 		std::cout << "Unexpected error during playback:" << e.what()  << std::endl;
+		AltSoundShutdown();
+		ma_device_stop(&g_device);
+		ma_device_uninit(&g_device);
 		return 1;
 	}
 
-	std::cout << "Playback completed! Press Enter to exit..." << std::endl;
-	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Wait for user input
+	//std::cout << "Playback completed! Press Enter to exit..." << std::endl;
+	//std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Wait for user input
 
-	AltsoundShutdown();
+	AltSoundShutdown();
+	ma_device_stop(&g_device);
+	ma_device_uninit(&g_device);
+
 	return 0;
 }

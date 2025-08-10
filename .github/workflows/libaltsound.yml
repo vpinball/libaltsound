@@ -10,7 +10,7 @@ defaults:
 jobs:
   version:
     name: Detect version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
@@ -34,47 +34,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            platform: win
-            arch: x64
-          - os: windows-latest
-            platform: win
-            arch: x86
-          - os: macos-latest
-            platform: macos
-            arch: arm64
-          - os: macos-latest
-            platform: macos
-            arch: x64
-          - os: ubuntu-latest
-            platform: linux
-            arch: x64
-          - os: ubuntu-latest
-            platform: linux
-            arch: aarch64
-          - os: ubuntu-latest
-            platform: android
-            arch: arm64-v8a
-          - os: macos-latest
-            platform: ios
-            arch: arm64
-          - os: macos-latest
-            platform: ios-simulator
-            arch: arm64
-          - os: macos-latest
-            platform: tvos
-            arch: arm64
+          - { os: windows-2025, platform: win, arch: x64 }
+          - { os: windows-2025, platform: win, arch: x86 }
+          - { os: macos-15, platform: macos, arch: arm64 }
+          - { os: macos-15, platform: macos, arch: x64 }
+          - { os: ubuntu-24.04, platform: linux, arch: x64 }
+          - { os: ubuntu-24.04-arm, platform: linux, arch: aarch64 }
+          - { os: ubuntu-24.04, platform: android, arch: arm64-v8a }
+          - { os: macos-15, platform: ios, arch: arm64 }
+          - { os: macos-15, platform: ios-simulator, arch: arm64 }
+          - { os: macos-15, platform: tvos, arch: arm64 }
     steps:
       - uses: actions/checkout@v4
-      - if: (!(matrix.platform == 'linux' && matrix.arch == 'aarch64'))
-        name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
+      - name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }}
         run: |
-          ./platforms/${{ matrix.platform }}/${{ matrix.arch }}/external.sh
           if [[ "${{ matrix.platform }}" == "win" ]]; then
              if [[ "${{ matrix.arch }}" == "x86" ]]; then
-                cmake -G "Visual Studio 17 2022" -A Win32 -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
+                cmake \
+                   -G "Visual Studio 17 2022" \
+                   -A Win32 \
+                   -DPLATFORM=${{ matrix.platform }} \
+                   -DARCH=${{ matrix.arch }} \
+                   -B build
              else
-                cmake -G "Visual Studio 17 2022" -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build 
+                cmake \
+                   -G "Visual Studio 17 2022" \
+                   -DPLATFORM=${{ matrix.platform }} \
+                   -DARCH=${{ matrix.arch }} \
+                   -B build
              fi
              cmake --build build --config Release
           else
@@ -84,28 +71,21 @@ jobs:
                 NUM_PROCS=$(nproc)
              fi
              if [[ "${{ matrix.platform }}" == "tvos" ]]; then
-                cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -DBUILD_SHARED=OFF -B build
+                cmake \
+                   -DPLATFORM=${{ matrix.platform }} \
+                   -DARCH=${{ matrix.arch }} \
+                   -DBUILD_SHARED=OFF \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -B build
              else
-                cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
+                cmake \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -DPLATFORM=${{ matrix.platform }} \
+                   -DARCH=${{ matrix.arch }} \
+                   -B build
              fi
              cmake --build build -- -j${NUM_PROCS}
           fi
-      - if: (matrix.platform == 'linux' && matrix.arch == 'aarch64')
-        name: Build libaltsound-${{ matrix.platform }}-${{ matrix.arch }} (arm runner)
-        uses: pguyot/arm-runner-action@v2
-        with:
-          base_image: raspios_lite_arm64:latest
-          image_additional_mb: 4096
-          cpu: cortex-a53
-          cpu_info: cpuinfo/raspberrypi_zero2_w_arm64
-          bind_mount_repository: true
-          commands: |
-            apt-get update -y --allow-releaseinfo-change
-            apt-get install --no-install-recommends -y pkg-config cmake autoconf automake libtool
-            ./platforms/${{ matrix.platform }}/${{ matrix.arch }}/external.sh
-            NUM_PROCS=$(nproc)
-            cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=${{ matrix.platform }} -DARCH=${{ matrix.arch }} -B build
-            cmake --build build -- -j${NUM_PROCS}
       - name: Prepare artifacts
         id: artifacts
         run: |
@@ -120,8 +100,6 @@ jobs:
                 cp build/Release/altsound64.dll tmp
              fi
              cp build/Release/altsound_static.lib tmp
-             cp build/Release/bass.lib tmp
-             cp build/Release/bass.dll tmp
              cp build/Release/altsound_test_s.exe tmp
              cp build/Release/altsound_test.exe tmp
           else
@@ -129,13 +107,11 @@ jobs:
             if [[ "${{ matrix.platform }}" == "macos" ]]; then
                cp build/libaltsound.a tmp
                cp build/libaltsound.*.dylib tmp
-               cp build/libbass.dylib tmp
                cp build/altsound_test_s tmp
                cp build/altsound_test tmp
             elif [[ "${{ matrix.platform }}" == "linux" ]]; then
                cp build/libaltsound.a tmp
                cp build/libaltsound.so.* tmp
-               cp build/libbass.so tmp
                cp build/altsound_test_s tmp
                cp build/altsound_test tmp
             elif [[ "${{ matrix.platform }}" == "ios" || "${{ matrix.platform }}" == "ios-simulator" ]]; then
@@ -150,7 +126,7 @@ jobs:
             cd tmp
             tar -czvf ../${ARTIFACT_PATH} *
           fi
-          echo "artifact_path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT    
+          echo "artifact_path=${ARTIFACT_PATH}" >> $GITHUB_OUTPUT
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -158,7 +134,7 @@ jobs:
           path: ${{ steps.artifacts.outputs.artifact_path }}
 
   post-build:
-    runs-on: macos-latest
+    runs-on: macos-15
     needs: [ version, build ]
     name: Build libaltsound-macos
     steps:
@@ -175,7 +151,7 @@ jobs:
           mkdir tmp
           lipo -create -output tmp/libaltsound-${{ needs.version.outputs.tag }}.dylib \
              libaltsound-${{ needs.version.outputs.tag }}-macos-arm64/libaltsound.${{ needs.version.outputs.tag }}.dylib \
-             libaltsound-${{ needs.version.outputs.tag }}-macos-x64/libaltsound.${{ needs.version.outputs.tag }}.dylib 
+             libaltsound-${{ needs.version.outputs.tag }}-macos-x64/libaltsound.${{ needs.version.outputs.tag }}.dylib
           lipo -create -output tmp/altsound_test \
              libaltsound-${{ needs.version.outputs.tag }}-macos-arm64/altsound_test \
              libaltsound-${{ needs.version.outputs.tag }}-macos-x64/altsound_test

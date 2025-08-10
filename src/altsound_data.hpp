@@ -35,7 +35,7 @@
 #include <cstdint>
 
 #define ALT_MAX_CMDS 4
-#define BASS_NO_STREAM 0
+#define MINIAUDIO_NO_STREAM 0
 #define ALT_MAX_CHANNELS 16
 
 #define LOG // DAR_TODO remove when logging converted
@@ -142,8 +142,8 @@ typedef struct _gsound_sample_info {
 // Helper function prototypes
 // ---------------------------------------------------------------------------
 
-// translate BASS error codes to printable strings
-const char* get_bass_err();  // function prototype
+// get last error string (similar to BASS get_bass_err)
+const char* get_miniaudio_err();
 
 // translate AltsoundSampleType enum values to strings
 const char* toString(AltsoundSampleType sampleType);

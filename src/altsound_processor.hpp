@@ -50,6 +50,15 @@ public:
 	// External interface to stop currently-playing MUSIC stream
 	bool stopMusic() override;
 
+	// miniaudio SYNCPROC callback when jingle samples end
+	static void ALTSOUNDCALLBACK jingle_callback(unsigned int handle, unsigned int channel, unsigned int data, void *user);
+
+	// miniaudio SYNCPROC callback when sfx samples end
+	static void ALTSOUNDCALLBACK sfx_callback(unsigned int handle, unsigned int channel, unsigned int data, void *user);
+
+	// miniaudio SYNCPROC callback when music samples end
+	static void ALTSOUNDCALLBACK music_callback(unsigned int handle, unsigned int channel, unsigned int data, void *user);
+
 protected:
 
 private: // functions
@@ -80,15 +89,6 @@ private: // functions
 
 	// process sfx commands
 	bool process_sfx(AltsoundStreamInfo* stream_out);
-
-	// BASS SYNCPROC callback when jingle samples end
-	static void ALTSOUNDCALLBACK jingle_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
-
-	// BASS SYNCPROC callback when sfx samples end
-	static void ALTSOUNDCALLBACK sfx_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
-
-	// BASS SYNCPROC callback when music samples end
-	static void ALTSOUNDCALLBACK music_callback(HSYNC handle, DWORD channel, DWORD data, void *user);
 
 private: // data
 

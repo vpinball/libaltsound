@@ -1,7 +1,7 @@
 #pragma once
 
 #define ALTSOUND_VERSION_MAJOR 0 // X Digits
-#define ALTSOUND_VERSION_MINOR 1 // Max 2 Digits
+#define ALTSOUND_VERSION_MINOR 5 // Max 2 Digits
 #define ALTSOUND_VERSION_PATCH 0 // Max 2 Digits
 
 #define _ALTSOUND_STR(x) #x
@@ -57,9 +57,14 @@ typedef enum {
 	ALTSOUND_LOG_LEVEL_UNDEFINED,
 } ALTSOUND_LOG_LEVEL;
 
-ALTSOUNDAPI void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
-ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName);
-ALTSOUNDAPI void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
-ALTSOUNDAPI bool AltsoundProcessCommand(const unsigned int cmd, int attenuation);
-ALTSOUNDAPI void AltsoundPause(bool pause);
-ALTSOUNDAPI void AltsoundShutdown();
+typedef void (*AltSoundAudioCallback)(const float* samples, size_t frameCount, uint32_t sampleRate, uint32_t channels, void* userData);
+
+ALTSOUNDAPI void AltSoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
+ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
+                              uint32_t sampleRate = 44100, uint32_t channels = 2, uint32_t bufferSizeFrames = 256);
+ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
+ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* userData);
+ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation);
+ALTSOUNDAPI void AltSoundPause(bool pause);
+ALTSOUNDAPI void AltSoundShutdown();
+

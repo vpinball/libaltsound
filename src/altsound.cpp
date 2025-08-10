@@ -7,6 +7,13 @@
 #include "altsound_processor_base.hpp"
 #include "altsound_processor.hpp"
 #include "gsound_processor.hpp"
+#include "miniaudio_bass_compat.hpp"
+
+#include <thread>
+#include <chrono>
+#include <atomic>
+#include <condition_variable>
+#include <unordered_map>
 
 StreamArray channel_stream;
 std::mutex io_mutex;
@@ -20,6 +27,138 @@ AltsoundLogger alog;
 AltsoundProcessorBase* g_pProcessor = NULL;
 ALTSOUND_HARDWARE_GEN g_hardwareGen = ALTSOUND_HARDWARE_GEN_NONE;
 CmdData g_cmdData;
+
+std::unordered_map<unsigned int, _internal_stream_data> g_streamMap;
+std::mutex g_streamMapMutex;
+
+static AltSoundAudioCallback g_audioCallback = nullptr;
+static void* g_audioUserData = nullptr;
+static std::mutex g_audioMutex;
+uint32_t g_sampleRate = 44100;
+uint32_t g_channels = 2;
+uint32_t g_nextStreamId = 1;
+int g_last_ma_err = 0;
+
+static std::thread g_audioThread;
+static std::atomic<bool> g_audioRunning{false};
+static uint32_t g_bufferSizeFrames = 256;
+
+static std::condition_variable g_audioWakeup;
+static std::mutex g_audioWakeupMutex;
+
+/******************************************************
+ * Audio mixing thread
+ ******************************************************/
+
+static void AudioMixingThread()
+{
+    float* mixBuffer = new float[g_bufferSizeFrames * g_channels];
+    float* tempBuffer = new float[g_bufferSizeFrames * g_channels];
+
+    using clock = std::chrono::steady_clock;
+    using namespace std::chrono;
+    auto period = duration<double>(static_cast<double>(g_bufferSizeFrames) / std::max<uint32_t>(1, g_sampleRate));
+    auto nextDue = clock::now();
+
+    while (g_audioRunning.load()) {
+        {
+            std::unique_lock<std::mutex> lock(g_audioWakeupMutex);
+            g_audioWakeup.wait_until(lock, nextDue);
+        }
+
+        for (size_t i = 0; i < g_bufferSizeFrames * g_channels; ++i)
+            mixBuffer[i] = 0.0f;
+
+        std::vector<std::pair<AltsoundStreamInfo*, _internal_stream_data*>> activeStreams;
+        {
+            std::lock_guard<std::mutex> lock(io_mutex);
+            std::lock_guard<std::mutex> streamLock(g_streamMapMutex);
+            for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
+                AltsoundStreamInfo* stream = channel_stream[i];
+                if (stream && stream->hstream != MINIAUDIO_NO_STREAM) {
+                    auto it = g_streamMap.find(stream->hstream);
+                    if (it != g_streamMap.end() && it->second.decoder && it->second.playing && !it->second.paused) {
+                        activeStreams.push_back({stream, &it->second});
+                    }
+                }
+            }
+        }
+
+        for (auto& streamPair : activeStreams) {
+            AltsoundStreamInfo* stream = streamPair.first;
+            _internal_stream_data* internal = streamPair.second;
+
+            const float volume = stream->gain * stream->ducking * g_pProcessor->getGlobalVol() * g_pProcessor->getMasterVol();
+            const uint32_t outCh = g_channels;
+            const uint32_t inCh = internal->channels;
+
+            size_t dstBaseFrame = 0;
+            while (dstBaseFrame < g_bufferSizeFrames) {
+                const ma_uint64 framesRequested = g_bufferSizeFrames - dstBaseFrame;
+                ma_uint64 framesRead = 0;
+                ma_result result = altsound_ma_decoder_read_pcm_frames(internal->decoder, tempBuffer, framesRequested, &framesRead);
+
+                if (framesRead == 0) {
+                    if (stream->loop) {
+                        altsound_ma_decoder_seek_to_pcm_frame(internal->decoder, 0);
+                        continue;
+                    } else {
+                        internal->playing = false;
+                        if (internal->sync_callback) {
+                            internal->sync_callback(stream->hsync, stream->hstream, 0, internal->sync_userdata);
+                        }
+                        break;
+                    }
+                }
+
+                const size_t framesToMix = static_cast<size_t>(framesRead);
+                if (inCh == outCh) {
+                    for (size_t frame = 0; frame < framesToMix; ++frame) {
+                        for (uint32_t ch = 0; ch < outCh; ++ch) {
+                            size_t idx = (dstBaseFrame + frame) * outCh + ch;
+                            mixBuffer[idx] += tempBuffer[frame * inCh + ch] * volume;
+                        }
+                    }
+                } else {
+                    for (size_t frame = 0; frame < framesToMix; ++frame) {
+                        for (uint32_t ch = 0; ch < outCh; ++ch) {
+                            size_t srcIdx = frame * inCh + (ch % inCh);
+                            size_t dstIdx = (dstBaseFrame + frame) * outCh + ch;
+                            mixBuffer[dstIdx] += tempBuffer[srcIdx] * volume;
+                        }
+                    }
+                }
+
+                if (framesRead < framesRequested) {
+                    if (stream->loop) {
+                        altsound_ma_decoder_seek_to_pcm_frame(internal->decoder, 0);
+                        dstBaseFrame += framesToMix;
+                        continue;
+                    } else {
+                        dstBaseFrame += framesToMix;
+                        break;
+                    }
+                }
+
+                dstBaseFrame += framesToMix;
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(g_audioMutex);
+            if (g_audioCallback)
+                g_audioCallback(mixBuffer, g_bufferSizeFrames, g_sampleRate, g_channels, g_audioUserData);
+        }
+
+        nextDue += duration_cast<clock::duration>(period);
+        auto now = clock::now();
+        if (now >= nextDue)
+            nextDue = now + duration_cast<clock::duration>(period);
+    }
+
+    delete[] mixBuffer;
+    delete[] tempBuffer;
+}
 
 /******************************************************
  * altsound_preprocess_commands
@@ -44,7 +183,7 @@ void altsound_preprocess_commands(int cmd)
 			// E.g.: One more note on command processing: each byte of a command sequence must be received on the DCS side within 100ms of the previous byte.
 			//   The DCS software clears any buffered bytes if more than 100ms elapses between consecutive bytes.
 			//   This implies that a sender can wait a little longer than 100ms before sending the first byte of a new command if it wants to essentially reset the network connection,
-			//   ensuring that the DCS receiver doesn't think it's in the middle of some earlier partially-sent command sequence. 
+			//   ensuring that the DCS receiver doesn't think it's in the middle of some earlier partially-sent command sequence.
 
 			ALT_DEBUG(0, "Hardware Generation: GEN_WPCDCS, GEN_WPCSECURITY, GEN_WPC95DCS, GEN_WPC95");
 
@@ -87,7 +226,7 @@ void altsound_preprocess_commands(int cmd)
 			}
 			else
 			if (((g_cmdData.cmd_buffer[3] == 0x55) && (g_cmdData.cmd_buffer[2] == 0xAA))) { // change master volume?
-				// DAR@20240208 The check below is dangerous.  If this is still a 
+				// DAR@20240208 The check below is dangerous.  If this is still a
 				//              problem, it would be better to revisit it when it
 				//              reappears to implement a more robust solution that
 				//              works for all systems
@@ -294,10 +433,10 @@ void altsound_postprocess_commands(const unsigned int combined_cmd)
 }
 
 /******************************************************
- * AltsoundSetLogger
+ * AltSoundSetLogger
  ******************************************************/
 
-ALTSOUNDAPI void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console)
+ALTSOUNDAPI void AltSoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console)
 {
 	alog.setLogPath(logPath);
 	alog.setLogLevel((AltsoundLogger::Level)logLevel);
@@ -305,20 +444,25 @@ ALTSOUNDAPI void AltsoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL log
 }
 
 /******************************************************
- * AltsoundInit
+ * AltSoundInit
  ******************************************************/
 
-ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName)
+ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
+                              uint32_t sampleRate, uint32_t channels, uint32_t bufferSizeFrames)
 {
-	ALT_DEBUG(0, "BEGIN AltsoundInit()");
+	ALT_DEBUG(0, "BEGIN AltSoundInit()");
 	ALT_INDENT;
 
 	if (g_pProcessor) {
 		ALT_ERROR(0, "Processor already defined");
 		ALT_OUTDENT;
-		ALT_DEBUG(0, "END AltsoundInit()");
+		ALT_DEBUG(0, "END AltSoundInit()");
 		return false;
 	}
+
+	g_sampleRate = sampleRate;
+	g_channels = channels;
+	g_bufferSizeFrames = bufferSizeFrames;
 
 	// initialize channel_stream storage
 	std::fill(channel_stream.begin(), channel_stream.end(), nullptr);
@@ -338,7 +482,7 @@ ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName)
 		// Error message and return
 		ALT_ERROR(0, "Failed to parse_altsound_ini(%s)", szAltSoundPath.c_str());
 		ALT_OUTDENT;
-		ALT_DEBUG(0, "END AltsoundInit()");
+		ALT_DEBUG(0, "END AltSoundInit()");
 		return false;
 	}
 
@@ -355,17 +499,17 @@ ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName)
 	else {
 		ALT_ERROR(0, "Unknown AltSound format: %s", format.c_str());
 		ALT_OUTDENT;
-		ALT_DEBUG(0, "END AltsoundInit()");
+		ALT_DEBUG(0, "END AltSoundInit()");
 		return false;
 	}
 
 	if (!g_pProcessor) {
 		ALT_ERROR(0, "FAILED: Unable to create AltSound Processor");
 		ALT_OUTDENT;
-		ALT_DEBUG(0, "END AltsoundInit()");
+		ALT_DEBUG(0, "END AltSoundInit()");
 		return false;
 	}
-	
+
 	ALT_INFO(0, "%s processor created", format.c_str());
 
 	g_pProcessor->setMasterVol(1.0f);
@@ -382,24 +526,20 @@ ALTSOUNDAPI bool AltsoundInit(const string& pinmamePath, const string& gameName)
 	g_cmdData.cmd_filter = 0;
 	std::fill_n(g_cmdData.cmd_buffer, ALT_MAX_CMDS, ~0);
 
-	// Initialize BASS
-	int DSidx = -1; // BASS default device
+	g_audioRunning.store(true);
+	g_audioThread = std::thread(AudioMixingThread);
 
-	if (!BASS_Init(DSidx, 44100, 0, NULL, NULL)) {
-		ALT_ERROR(0, "BASS initialization error: %s", get_bass_err());
-	}
-
-	ALT_DEBUG(0, "END AltsoundInit()");
+	ALT_DEBUG(0, "END AltSoundInit()");
 	return true;
 }
 
 /******************************************************
- * AltsoundProcessCommand
+ * AltSoundProcessCommand
  ******************************************************/
 
-ALTSOUNDAPI void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
+ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
 {
-	ALT_DEBUG(0, "BEGIN AltsoundSetHardwareGen()");
+	ALT_DEBUG(0, "BEGIN AltSoundSetHardwareGen()");
 	ALT_INDENT;
 
 	g_hardwareGen = hardwareGen;
@@ -407,16 +547,35 @@ ALTSOUNDAPI void AltsoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
 	ALT_DEBUG(0, "MAME_GEN: 0x%013x", (uint64_t)g_hardwareGen);
 
 	ALT_OUTDENT;
-	ALT_DEBUG(0, "END AltsoundSetHardwareGen()");
+	ALT_DEBUG(0, "END AltSoundSetHardwareGen()");
 }
 
 /******************************************************
- * AltsoundProcessCommand
+ * AltSoundSetAudioCallback
  ******************************************************/
 
-ALTSOUNDAPI bool AltsoundProcessCommand(const unsigned int cmd, int attenuation)
+ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* userData)
 {
-	ALT_DEBUG(0, "BEGIN AltsoundProcessCommand()");
+	ALT_DEBUG(0, "BEGIN AltSoundSetAudioCallback()");
+	ALT_INDENT;
+
+	std::lock_guard<std::mutex> lock(g_audioMutex);
+	g_audioCallback = callback;
+	g_audioUserData = userData;
+
+	ALT_DEBUG(0, "Audio callback %s", callback ? "set" : "cleared");
+
+	ALT_OUTDENT;
+	ALT_DEBUG(0, "END AltSoundSetAudioCallback()");
+}
+
+/******************************************************
+ * AltSoundProcessCommand
+ ******************************************************/
+
+ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
+{
+	ALT_DEBUG(0, "BEGIN AltSoundProcessCommand()");
 
 	float master_vol = g_pProcessor->getMasterVol();
 	while (attenuation++ < 0) {
@@ -456,9 +615,9 @@ ALTSOUNDAPI bool AltsoundProcessCommand(const unsigned int cmd, int attenuation)
 		if ((g_cmdData.cmd_counter & 1) != 0) {
 			ALT_DEBUG(0, "Command incomplete: %04X", cmd);
 		}
-		
+
 		ALT_OUTDENT;
-		ALT_DEBUG(0, "END AltsoundProcessCommand");
+		ALT_DEBUG(0, "END AltSoundProcessCommand");
 		return true;
 	}
 	ALT_DEBUG(0, "Command complete. Processing...");
@@ -471,27 +630,30 @@ ALTSOUNDAPI bool AltsoundProcessCommand(const unsigned int cmd, int attenuation)
 		ALT_WARNING(0, "FAILED processor::handleCmd()");
 
 		altsound_postprocess_commands(cmd_combined);
-		
+
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END alt_sound_handle()");
 		return false;
 	}
 	ALT_INFO(0, "SUCCESS processor::handleCmd()");
 
+	// Wake up audio thread immediately for responsive sound triggering
+	g_audioWakeup.notify_one();
+
 	altsound_postprocess_commands(cmd_combined);
-	
+
 	ALT_OUTDENT;
-	ALT_DEBUG(0, "END AltsoundProcessCommand()");
+	ALT_DEBUG(0, "END AltSoundProcessCommand()");
 	ALT_DEBUG(0, "");
 
 	return true;
 }
 
 /******************************************************
- * AltsoundPause
+ * AltSoundPause
  ******************************************************/
 
-ALTSOUNDAPI void AltsoundPause(bool pause)
+ALTSOUNDAPI void AltSoundPause(bool pause)
 {
 	ALT_DEBUG(0, "BEGIN alt_sound_pause()");
 	ALT_INDENT;
@@ -504,14 +666,8 @@ ALTSOUNDAPI void AltsoundPause(bool pause)
 			if (!channel_stream[i])
 				continue;
 
-			const HSTREAM stream = channel_stream[i]->hstream;
-			if (BASS_ChannelIsActive(stream) == BASS_ACTIVE_PLAYING) {
-				if (!BASS_ChannelPause(stream)) {
-					ALT_WARNING(0, "FAILED BASS_ChannelPause(%u): %s", stream, get_bass_err());
-				}
-				else {
-					ALT_INFO(0, "SUCCESS BASS_ChannelPause(%u)", stream);
-				}
+			if (MiniAudio_ChannelPause(channel_stream[i]->hstream)) {
+				ALT_INFO(0, "SUCCESS: Paused stream %u", channel_stream[i]->hstream);
 			}
 		}
 	}
@@ -523,14 +679,8 @@ ALTSOUNDAPI void AltsoundPause(bool pause)
 			if (!channel_stream[i])
 				continue;
 
-			const HSTREAM stream = channel_stream[i]->hstream;
-			if (BASS_ChannelIsActive(stream) == BASS_ACTIVE_PAUSED) {
-				if (!BASS_ChannelPlay(stream, 0)) {
-					ALT_WARNING(0, "FAILED BASS_ChannelPlay(%u): %s", stream, get_bass_err());
-				}
-				else {
-					ALT_INFO(0, "SUCCESS BASS_ChannelPlay(%u)", stream);
-				}
+			if (MiniAudio_ChannelPlay(channel_stream[i]->hstream, false)) {
+				ALT_INFO(0, "SUCCESS: Resumed stream %u", channel_stream[i]->hstream);
 			}
 		}
 	}
@@ -540,19 +690,29 @@ ALTSOUNDAPI void AltsoundPause(bool pause)
 }
 
 /******************************************************
- * AltsoundShutdown
+ * AltSoundShutdown
  ******************************************************/
 
-ALTSOUNDAPI void AltsoundShutdown()
+ALTSOUNDAPI void AltSoundShutdown()
 {
-	ALT_DEBUG(0, "BEGIN AltsoundShutdown()");
+	ALT_DEBUG(0, "BEGIN AltSoundShutdown()");
 	ALT_INDENT;
+
+	g_audioRunning.store(false);
+	if (g_audioThread.joinable()) {
+		g_audioThread.join();
+	}
 
 	if (g_pProcessor) {
 		delete g_pProcessor;
 		g_pProcessor = NULL;
 	}
 
+	std::lock_guard<std::mutex> lock(g_audioMutex);
+	g_audioCallback = nullptr;
+	g_audioUserData = nullptr;
+
 	ALT_OUTDENT;
-	ALT_DEBUG(0, "END AltsoundShutdown()");
+	ALT_DEBUG(0, "END AltSoundShutdown()");
 }
+

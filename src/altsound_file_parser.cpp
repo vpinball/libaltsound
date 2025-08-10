@@ -12,6 +12,7 @@
 
 #include <iomanip>
 #include <sys/stat.h>
+#include <cstring>
 #ifdef _MSC_VER
 
 #ifdef __cplusplus

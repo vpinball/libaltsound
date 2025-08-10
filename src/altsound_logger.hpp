@@ -19,12 +19,12 @@
  #endif
 #endif
 
-#define FMT_HEADER_ONLY
-#include "fmt/printf.h"
-
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <cstdarg>
+#include <cstdlib>
+#include <algorithm>
 
 using std::string;
 
@@ -62,38 +62,46 @@ public:
 	// remain in the header
 	//
 	// Log INFO level messages
-	template<typename... Args>
-	void info(int rel_indent, const char* format, Args... args)
+	void info(int rel_indent, const char* format, ...)
 	{
 		if (log_level >= Level::Info) {
-			log(base_indent + rel_indent, Level::Info, format, args...);
+			va_list args;
+			va_start(args, format);
+			log(base_indent + rel_indent, Level::Info, format, args);
+			va_end(args);
 		}
 	}
 
 	// Log ERROR level messages
-	template<typename... Args>
-	void error(int rel_indent, const char* format, Args... args)
+	void error(int rel_indent, const char* format, ...)
 	{
 		if (log_level >= Level::Error) {
-			log(base_indent + rel_indent, Level::Error, format, args...);
+			va_list args;
+			va_start(args, format);
+			log(base_indent + rel_indent, Level::Error, format, args);
+			va_end(args);
 		}
 	}
 
 	// Log WARNING level messages
-	template<typename... Args>
-	void warning(int rel_indent, const char* format, Args... args)
+	void warning(int rel_indent, const char* format, ...)
 	{
 		if (log_level >= Level::Warning) {
-			log(base_indent + rel_indent, Level::Warning, format, args...);
+			va_list args;
+			va_start(args, format);
+			log(base_indent + rel_indent, Level::Warning, format, args);
+			va_end(args);
 		}
 	}
 
 	// Log DEBUG level messages
-	template<typename... Args>
-	void debug(int rel_indent, const char* format, Args... args)
+	void debug(int rel_indent, const char* format, ...)
 	{
 		if (log_level >= Level::Debug) {
-			log(base_indent + rel_indent, Level::Debug, format, args...);
+			va_list args;
+			va_start(args, format);
+			log(base_indent + rel_indent, Level::Debug, format, args);
+			va_end(args);
 		}
 	}
 
@@ -116,32 +124,47 @@ private:  // methods
 	// Because this is a variadic template function, it must remain in the header
 	//
 	// main logging method
-	template<typename... Args>
-	void log(int indentLevel, Level lvl, const string& format, Args... args) {
-		const string formattedString = fmt::sprintf(format, args...);
-		std::stringstream message;
-		message << string(indentLevel * indentWidth, ' ')
-			<< toString(lvl) << ": " << formattedString << "\n";
-		const string finalMessage = message.str();
+	void log(int indentLevel, Level lvl, const char* format, va_list args) {
+		va_list args_copy;
+		va_copy(args_copy, args);
+		int size = vsnprintf(nullptr, 0, format, args_copy);
+		va_end(args_copy);
 
-		if (out.is_open()) {
-			out << finalMessage;
-			out.flush();
+		if (size >= 0) {
+			char* buffer = nullptr;
+			if (size > 0) {
+				buffer = static_cast<char*>(malloc(size + 1));
+				vsnprintf(buffer, size + 1, format, args);
+			}
+
+			std::stringstream message;
+			message << string(indentLevel * indentWidth, ' ')
+				<< toString(lvl) << ": " << (buffer ? buffer : "") << "\n";
+			const string finalMessage = message.str();
+
+			if (out.is_open()) {
+				out << finalMessage;
+				out.flush();
+			}
+
+			if (console)
+				std::cout << finalMessage;
+
+			if (buffer)
+				free(buffer);
 		}
-
-		if (console)
-			std::cout << finalMessage;
 	}
 
 	// DAR@20230706
 	// This is only used for logging message within the logger class
 	//
-	// Log DEBUG level messages
-	template<typename... Args>
-	void none(int rel_indent, const char* format, Args... args)
+	void none(int rel_indent, const char* format, ...)
 	{
 		if (log_level >= Level::None) {
-			log(base_indent + rel_indent, Level::None, format, args...);
+			va_list args;
+			va_start(args, format);
+			log(base_indent + rel_indent, Level::None, format, args);
+			va_end(args);
 		}
 	}
 
@@ -171,7 +194,7 @@ inline void AltsoundLogger::setLogPath(const string& logPath)
 		return;
 
 	string full_path = logPath;
-	std::replace(full_path.begin(), full_path.end(), '\\', '/');	
+	std::replace(full_path.begin(), full_path.end(), '\\', '/');
 
 	if (full_path.back() != '/')
 		full_path += '/';

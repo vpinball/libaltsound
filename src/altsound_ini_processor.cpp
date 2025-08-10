@@ -176,7 +176,7 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 	callout_behavior.stops.set(static_cast<int>(BB::CALLOUT), true); // CALLOUT stops other CALLOUT streams
 	success &= parseBehaviorValue(callout_section, "stops", callout_behavior.stops);
 
-	// Parse CALLOUT "DUCKS" behavior	
+	// Parse CALLOUT "DUCKS" behavior
 	success &= parseBehaviorValue(callout_section, "ducks", callout_behavior.ducks);
 
 	// parse CALLOUT "CALLOUT_DUCKING_PROFILES"

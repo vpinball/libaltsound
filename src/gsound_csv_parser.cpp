@@ -52,9 +52,9 @@ bool GSoundCsvParser::parse(std::vector<GSoundSampleInfo>& samples_out)
 		"callout",
 		"solo",
 		"sfx",
-		"overlay" 
+		"overlay"
 	};
-	
+
 	bool success = true;
 
 	try {

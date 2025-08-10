@@ -13,7 +13,7 @@
 #include <map>
 
 // DAR@20230706
-// This must be done here and only here to avoid breaking the 
+// This must be done here and only here to avoid breaking the
 // "One Definition Rule".  thread_local variables are tied to
 // the compilation unit they are declared in
 //

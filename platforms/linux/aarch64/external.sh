@@ -14,6 +14,6 @@ mkdir bass
 cd bass
 curl -s https://www.un4seen.com/files/bass24-linux.zip -o bass.zip
 unzip bass.zip
-cp bass.h ../../third-party/include
+cp c/bass.h ../../third-party/include
 cp libs/aarch64/libbass.so ../../third-party/runtime-libs/linux/aarch64
 

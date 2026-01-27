@@ -66,9 +66,7 @@ int MiniAudio_ChannelSetAttribute(unsigned int hstream, unsigned int attrib, flo
 
 	switch (attrib) {
 		case MINIAUDIO_ATTRIB_VOL:
-			// In miniaudio implementation, we don't store the calculated volume in gain
-			// because gain should preserve the original sample volume.
-			// The full volume calculation is applied in AudioMixingThread.
+			it->second.volume = value;
 			MiniAudio_ErrorSetCode(MA_SUCCESS);
 			return 1;
 	}
@@ -92,14 +90,9 @@ bool MiniAudio_ChannelGetAttribute(unsigned int hstream, unsigned int attrib, fl
 
 	switch (attrib) {
 		case MINIAUDIO_ATTRIB_VOL:
-			for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
-				if (channel_stream[i] && channel_stream[i]->hstream == hstream) {
-					*value = channel_stream[i]->gain;
-					MiniAudio_ErrorSetCode(MA_SUCCESS);
-					return true;
-				}
-			}
-			break;
+			*value = it->second.volume;
+			MiniAudio_ErrorSetCode(MA_SUCCESS);
+			return true;
 	}
 	MiniAudio_ErrorSetCode(MA_ERROR);
 	return false;

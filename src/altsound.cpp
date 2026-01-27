@@ -88,7 +88,7 @@ static void AudioMixingThread()
             AltsoundStreamInfo* stream = streamPair.first;
             _internal_stream_data* internal = streamPair.second;
 
-            const float volume = stream->gain * stream->ducking * g_pProcessor->getGlobalVol() * g_pProcessor->getMasterVol();
+            const float volume = internal->volume;
             const uint32_t outCh = g_channels;
             const uint32_t inCh = internal->channels;
 

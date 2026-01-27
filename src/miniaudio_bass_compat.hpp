@@ -22,6 +22,7 @@ struct _internal_stream_data {
 	bool paused = false;
 	uint32_t sample_rate = 44100;
 	uint32_t channels = 2;
+	float volume = 1.0f;
 	SYNCPROC sync_callback = nullptr;
 	void* sync_userdata = nullptr;
 };

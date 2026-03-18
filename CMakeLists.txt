@@ -88,7 +88,7 @@ set(ALTSOUND_SOURCES
    src/miniaudio_bass_compat.hpp
 )
 
-if(PLATFORM STREQUAL "win")
+if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "win-mingw")
    list(APPEND ALTSOUND_SOURCES
       third-party/include/dirent/dirent.c
       third-party/include/dirent/dirent.h
@@ -104,23 +104,32 @@ if(BUILD_SHARED)
    add_library(altsound_shared SHARED ${ALTSOUND_SOURCES})
    target_include_directories(altsound_shared PUBLIC ${ALTSOUND_INCLUDE_DIRS})
 
-   if(PLATFORM STREQUAL "win" AND ARCH STREQUAL "x64")
+   if((PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "win-mingw") AND ARCH STREQUAL "x64")
       set(ALTSOUND_OUTPUT_NAME "altsound64")
    else()
       set(ALTSOUND_OUTPUT_NAME "altsound")
    endif()
 
-   set_target_properties(altsound_shared PROPERTIES
-      OUTPUT_NAME ${ALTSOUND_OUTPUT_NAME}
-      VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-   )
+   if(PLATFORM STREQUAL "win-mingw")
+      set_target_properties(altsound_shared PROPERTIES
+         PREFIX ""
+         IMPORT_PREFIX ""
+         OUTPUT_NAME ${ALTSOUND_OUTPUT_NAME}
+         VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+      )
+   else()
+      set_target_properties(altsound_shared PROPERTIES
+         OUTPUT_NAME ${ALTSOUND_OUTPUT_NAME}
+         VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+      )
+   endif()
 
    install(TARGETS altsound_shared
       LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
    )
    install(FILES src/altsound.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
-   if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
+   if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "win-mingw" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
       add_executable(altsound_test
          src/test.cpp
       )
@@ -134,8 +143,9 @@ if(BUILD_STATIC)
 
    target_include_directories(altsound_static PUBLIC ${ALTSOUND_INCLUDE_DIRS})
 
-   if(PLATFORM STREQUAL "win")
+   if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "win-mingw")
       set_target_properties(altsound_static PROPERTIES
+         PREFIX ""
          OUTPUT_NAME "altsound_static"
       )
    else()
@@ -149,7 +159,7 @@ if(BUILD_STATIC)
    )
    install(FILES src/altsound.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
-   if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
+   if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "win-mingw" OR PLATFORM STREQUAL "macos" OR PLATFORM STREQUAL "linux")
       add_executable(altsound_test_s
          src/test.cpp
       )

@@ -62,6 +62,26 @@ cmake -G "Visual Studio 17 2022" -A Win32 -DPLATFORM=win -DARCH=x86 -B build
 cmake --build build --config Release
 ```
 
+#### Windows MinGW / MSYS2 UCRT64 (x64)
+
+Requires MSYS2 with UCRT64 environment. Install dependencies:
+
+```shell
+pacman -S --noconfirm \
+  mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-libwinpthread \
+  mingw-w64-ucrt-x86_64-cmake
+```
+
+Build (entire build runs inside the MSYS2 UCRT64 shell):
+
+```shell
+MSYSTEM=UCRT64 /c/msys64/usr/bin/bash.exe -l -c "
+  cd \"$(pwd)\" &&
+  cmake -DCMAKE_BUILD_TYPE=Release -DPLATFORM=win-mingw -DARCH=x64 -B build &&
+  cmake --build build -- -j\$(nproc)
+"
+```
+
 #### Linux (x64)
 ```shell
 cmake -DPLATFORM=linux -DARCH=x64 -DCMAKE_BUILD_TYPE=Release -B build

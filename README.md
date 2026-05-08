@@ -51,14 +51,14 @@ AltSoundShutdown();
 #### Windows (x64)
 
 ```shell
-cmake -G "Visual Studio 17 2022" -DPLATFORM=win -DARCH=x64 -B build
+cmake -G "Visual Studio 18 2026" -DPLATFORM=win -DARCH=x64 -B build
 cmake --build build --config Release
 ```
 
 #### Windows (x86)
 
 ```shell
-cmake -G "Visual Studio 17 2022" -A Win32 -DPLATFORM=win -DARCH=x86 -B build
+cmake -G "Visual Studio 18 2026" -A Win32 -DPLATFORM=win -DARCH=x86 -B build
 cmake --build build --config Release
 ```
 

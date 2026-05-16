@@ -92,10 +92,15 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
 	float* output = (float*)pOutput;
 	const uint32_t channels = pDevice->playback.channels;
+	static uint32_t underrun_count = 0;
 
 	std::unique_lock<std::mutex> lock(g_audioQueueMutex);
 
 	if (g_audioQueue.empty()) {
+		++underrun_count;
+		if (underrun_count == 1 || (underrun_count % 100) == 0) {
+			std::cout << "Audio queue underrun (count=" << std::dec << underrun_count << ")" << std::endl;
+		}
 		memset(output, 0, frameCount * channels * sizeof(float));
 		return;
 	}
@@ -142,6 +147,7 @@ void audio_callback_bridge(const float* samples, size_t frameCount, uint32_t sam
 	std::lock_guard<std::mutex> lock(g_audioQueueMutex);
 
 	if (g_audioQueue.size() >= MAX_QUEUE_SIZE) {
+		std::cout << "Audio queue full; dropping buffer" << std::endl;
 		return;
 	}
 
@@ -320,8 +326,8 @@ std::pair<bool, InitData> init(const string& log_path)
         g_deviceConfig.playback.channels = 2;
         g_deviceConfig.sampleRate = 44100;
         g_deviceConfig.dataCallback = data_callback;
-        g_deviceConfig.periodSizeInFrames = 512;
-        g_deviceConfig.periods = 3;
+		g_deviceConfig.periodSizeInFrames = 1024;
+		g_deviceConfig.periods = 4;
 
         ma_result result = ma_device_init(NULL, &g_deviceConfig, &g_device);
         if (result != MA_SUCCESS) {
@@ -331,7 +337,12 @@ std::pair<bool, InitData> init(const string& log_path)
 
         const uint32_t bufferSize = g_device.playback.internalPeriodSizeInFrames;
 
-        AltSoundInit(init_data.vpm_path, init_data.game_name, g_device.sampleRate, g_device.playback.channels, bufferSize);
+		const bool init_ok = AltSoundInit(init_data.vpm_path, init_data.game_name,
+										  g_device.sampleRate, g_device.playback.channels, bufferSize);
+		if (!init_ok) {
+			std::cout << "AltSoundInit failed." << std::endl;
+			throw std::runtime_error("AltSoundInit failed");
+		}
         AltSoundSetHardwareGen(init_data.hardware_gen);
 
         result = ma_device_start(&g_device);

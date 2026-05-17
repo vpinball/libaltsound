@@ -60,6 +60,7 @@ struct TestData {
 struct InitData {
 	string log_path;
 	std::vector<TestData> test_data;
+	size_t combined_commands = 0;
 	string vpm_path;
 	string altsound_path;
 	string game_name;
@@ -91,41 +92,46 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
 	float* output = (float*)pOutput;
 	const uint32_t channels = pDevice->playback.channels;
-	
+	static uint32_t underrun_count = 0;
+
 	std::unique_lock<std::mutex> lock(g_audioQueueMutex);
-	
+
 	if (g_audioQueue.empty()) {
+		++underrun_count;
+		if (underrun_count == 1 || (underrun_count % 100) == 0) {
+			std::cout << "Audio queue underrun (count=" << std::dec << underrun_count << ")" << std::endl;
+		}
 		memset(output, 0, frameCount * channels * sizeof(float));
 		return;
 	}
-	
+
 	size_t outIndex = 0;
 	size_t framesRemaining = frameCount;
-	
+
 	while (framesRemaining > 0 && !g_audioQueue.empty()) {
 		AltsoundAudioBuffer& buffer = g_audioQueue.front();
-		
+
 		if (buffer.data.empty()) {
 			g_audioQueue.pop();
 			continue;
 		}
-		
+
 		const size_t bufferFrames = buffer.data.size() / channels;
 		const size_t framesToCopy = std::min(framesRemaining, bufferFrames);
 		const size_t samplesToCopy = framesToCopy * channels;
-		
+
 		memcpy(&output[outIndex], buffer.data.data(), samplesToCopy * sizeof(float));
-		
+
 		outIndex += samplesToCopy;
 		framesRemaining -= framesToCopy;
-		
+
 		if (framesToCopy >= bufferFrames) {
 			g_audioQueue.pop();
 		} else {
 			buffer.data.erase(buffer.data.begin(), buffer.data.begin() + samplesToCopy);
 		}
 	}
-	
+
 	if (framesRemaining > 0) {
 		memset(&output[outIndex], 0, framesRemaining * channels * sizeof(float));
 	}
@@ -139,8 +145,9 @@ void audio_callback_bridge(const float* samples, size_t frameCount, uint32_t sam
 		return;
 
 	std::lock_guard<std::mutex> lock(g_audioQueueMutex);
-	
+
 	if (g_audioQueue.size() >= MAX_QUEUE_SIZE) {
+		std::cout << "Audio queue full; dropping buffer" << std::endl;
 		return;
 	}
 
@@ -148,7 +155,7 @@ void audio_callback_bridge(const float* samples, size_t frameCount, uint32_t sam
 	buffer.frameCount = frameCount;
 	buffer.sampleRate = sampleRate;
 	buffer.channels = channels;
-	
+
 	const size_t totalSamples = frameCount * channels;
 	buffer.data.reserve(totalSamples);
 	buffer.data.assign(samples, samples + totalSamples);
@@ -239,11 +246,12 @@ bool parseCmdFile(InitData& init_data)
 		std::cout << "Altsound path: " << init_data.altsound_path << std::endl;
 		std::cout << "VPinMAME path: " << init_data.vpm_path << std::endl;
 		std::cout << "Game name: " << init_data.game_name << std::endl;
-		std::cout << "Hardware Gen: 0x" 
-			<< std::setfill('0') << std::setw(13) 
+		std::cout << "Hardware Gen: 0x"
+			<< std::setfill('0') << std::setw(13)
 			<< std::hex << init_data.hardware_gen << std::endl;
 
 		// The rest of the lines are test data
+		size_t combined_count = 0;
 		while (std::getline(inFile, line)) {
 			if (!line.empty() && line.back() == '\r')
 				line.pop_back();
@@ -276,8 +284,14 @@ bool parseCmdFile(InitData& init_data)
 			if (end == command.c_str())
 				throw std::runtime_error("Unable to parse command: " + command);
 
-			init_data.test_data.push_back(data);
+			++combined_count;
+			// cmdlog stores combined 16-bit commands; expand to bytes for AltSoundProcessCommand().
+			const uint8_t hi_byte = static_cast<uint8_t>((data.snd_cmd >> 8) & 0xFF);
+			const uint8_t lo_byte = static_cast<uint8_t>(data.snd_cmd & 0xFF);
+			init_data.test_data.push_back(TestData{data.msec, hi_byte});
+			init_data.test_data.push_back(TestData{0, lo_byte});
 		}
+		init_data.combined_commands = combined_count;
 
 		inFile.close();
 		std::cout << "END parseCmdFile" << std::endl;
@@ -304,15 +318,16 @@ std::pair<bool, InitData> init(const string& log_path)
 			throw std::runtime_error("Failed to parse command file.");
 
 		std::cout << "SUCCESS parseCmdFile()" << std::endl;
-		std::cout << "Num commands parsed: " << init_data.test_data.size() << std::endl;
+		std::cout << "Num commands parsed: " << init_data.test_data.size()
+			<< " (expanded from " << init_data.combined_commands << " combined)" << std::endl;
 
         g_deviceConfig = ma_device_config_init(ma_device_type_playback);
         g_deviceConfig.playback.format = ma_format_f32;
         g_deviceConfig.playback.channels = 2;
         g_deviceConfig.sampleRate = 44100;
         g_deviceConfig.dataCallback = data_callback;
-        g_deviceConfig.periodSizeInFrames = 512;
-        g_deviceConfig.periods = 3;
+		g_deviceConfig.periodSizeInFrames = 1024;
+		g_deviceConfig.periods = 4;
 
         ma_result result = ma_device_init(NULL, &g_deviceConfig, &g_device);
         if (result != MA_SUCCESS) {
@@ -322,7 +337,12 @@ std::pair<bool, InitData> init(const string& log_path)
 
         const uint32_t bufferSize = g_device.playback.internalPeriodSizeInFrames;
 
-        AltSoundInit(init_data.vpm_path, init_data.game_name, g_device.sampleRate, g_device.playback.channels, bufferSize);
+		const bool init_ok = AltSoundInit(init_data.vpm_path, init_data.game_name,
+										  g_device.sampleRate, g_device.playback.channels, bufferSize);
+		if (!init_ok) {
+			std::cout << "AltSoundInit failed." << std::endl;
+			throw std::runtime_error("AltSoundInit failed");
+		}
         AltSoundSetHardwareGen(init_data.hardware_gen);
 
         result = ma_device_start(&g_device);

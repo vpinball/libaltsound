@@ -8,6 +8,7 @@
 #include "altsound_processor.hpp"
 #include "gsound_processor.hpp"
 #include "miniaudio_bass_compat.hpp"
+#include "miniaudio_private.h"
 
 #include <thread>
 #include <chrono>
@@ -38,126 +39,55 @@ uint32_t g_sampleRate = 44100;
 uint32_t g_channels = 2;
 uint32_t g_nextStreamId = 1;
 int g_last_ma_err = 0;
+ma_engine* g_engine = nullptr;
+ma_context* g_context = nullptr;
 
-static std::thread g_audioThread;
-static std::atomic<bool> g_audioRunning{false};
 static uint32_t g_bufferSizeFrames = 256;
 
-static std::condition_variable g_audioWakeup;
-static std::mutex g_audioWakeupMutex;
-
 /******************************************************
- * Audio mixing thread
+ * Audio mixing
+ *
+ * miniAudio owns the audio thread (a realtime-paced null device). Its engine
+ * mixes every playing ma_sound (volume, channel conversion and resampling
+ * included) and hands us the finished buffer through onProcess, which we just
+ * forward to the host. miniAudio handles all timing, throttling and buffering.
  ******************************************************/
 
-static void AudioMixingThread()
+struct EndedStream {
+    SYNCPROC callback;
+    unsigned int hsync;
+    unsigned int hstream;
+    void* userdata;
+};
+
+static void AltsoundEngineProcess(void* pUserData, float* pFramesOut, ma_uint64 frameCount)
 {
-    float* mixBuffer = new float[g_bufferSizeFrames * g_channels];
-    float* tempBuffer = new float[g_bufferSizeFrames * g_channels];
-
-    using clock = std::chrono::steady_clock;
-    using namespace std::chrono;
-    auto period = duration<double>(static_cast<double>(g_bufferSizeFrames) / std::max<uint32_t>(1, g_sampleRate));
-    auto nextDue = clock::now();
-
-    while (g_audioRunning.load()) {
-        {
-            std::unique_lock<std::mutex> lock(g_audioWakeupMutex);
-            g_audioWakeup.wait_until(lock, nextDue);
-        }
-
-        for (size_t i = 0; i < g_bufferSizeFrames * g_channels; ++i)
-            mixBuffer[i] = 0.0f;
-
-        std::vector<std::pair<AltsoundStreamInfo*, _internal_stream_data*>> activeStreams;
-        {
-            std::lock_guard<std::mutex> lock(io_mutex);
-            std::lock_guard<std::mutex> streamLock(g_streamMapMutex);
-            for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
-                AltsoundStreamInfo* stream = channel_stream[i];
-                if (stream && stream->hstream != MINIAUDIO_NO_STREAM) {
-                    auto it = g_streamMap.find(stream->hstream);
-                    if (it != g_streamMap.end() && it->second.decoder && it->second.playing && !it->second.paused) {
-                        activeStreams.push_back({stream, &it->second});
-                    }
+    // Detect non-looping streams that reached their end so the registered
+    // end-of-stream callbacks fire exactly once, outside of any lock.
+    std::vector<EndedStream> ended;
+    {
+        std::lock_guard<std::mutex> lock(io_mutex);
+        std::lock_guard<std::mutex> streamLock(g_streamMapMutex);
+        for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
+            AltsoundStreamInfo* stream = channel_stream[i];
+            if (stream && stream->hstream != MINIAUDIO_NO_STREAM) {
+                auto it = g_streamMap.find(stream->hstream);
+                if (it != g_streamMap.end() && it->second.sound && it->second.playing && !it->second.paused
+                    && !it->second.looping && altsound_ma_sound_at_end(it->second.sound)) {
+                    it->second.playing = false;
+                    if (it->second.sync_callback)
+                        ended.push_back({ it->second.sync_callback, stream->hsync, stream->hstream, it->second.sync_userdata });
                 }
             }
         }
-
-        for (auto& streamPair : activeStreams) {
-            AltsoundStreamInfo* stream = streamPair.first;
-            _internal_stream_data* internal = streamPair.second;
-
-            const float volume = internal->volume;
-            const uint32_t outCh = g_channels;
-            const uint32_t inCh = internal->channels;
-
-            size_t dstBaseFrame = 0;
-            while (dstBaseFrame < g_bufferSizeFrames) {
-                const ma_uint64 framesRequested = g_bufferSizeFrames - dstBaseFrame;
-                ma_uint64 framesRead = 0;
-                ma_result result = altsound_ma_decoder_read_pcm_frames(internal->decoder, tempBuffer, framesRequested, &framesRead);
-
-                if (framesRead == 0) {
-                    if (stream->loop) {
-                        altsound_ma_decoder_seek_to_pcm_frame(internal->decoder, 0);
-                        continue;
-                    } else {
-                        internal->playing = false;
-                        if (internal->sync_callback) {
-                            internal->sync_callback(stream->hsync, stream->hstream, 0, internal->sync_userdata);
-                        }
-                        break;
-                    }
-                }
-
-                const size_t framesToMix = static_cast<size_t>(framesRead);
-                if (inCh == outCh) {
-                    for (size_t frame = 0; frame < framesToMix; ++frame) {
-                        for (uint32_t ch = 0; ch < outCh; ++ch) {
-                            size_t idx = (dstBaseFrame + frame) * outCh + ch;
-                            mixBuffer[idx] += tempBuffer[frame * inCh + ch] * volume;
-                        }
-                    }
-                } else {
-                    for (size_t frame = 0; frame < framesToMix; ++frame) {
-                        for (uint32_t ch = 0; ch < outCh; ++ch) {
-                            size_t srcIdx = frame * inCh + (ch % inCh);
-                            size_t dstIdx = (dstBaseFrame + frame) * outCh + ch;
-                            mixBuffer[dstIdx] += tempBuffer[srcIdx] * volume;
-                        }
-                    }
-                }
-
-                if (framesRead < framesRequested) {
-                    if (stream->loop) {
-                        altsound_ma_decoder_seek_to_pcm_frame(internal->decoder, 0);
-                        dstBaseFrame += framesToMix;
-                        continue;
-                    } else {
-                        dstBaseFrame += framesToMix;
-                        break;
-                    }
-                }
-
-                dstBaseFrame += framesToMix;
-            }
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(g_audioMutex);
-            if (g_audioCallback)
-                g_audioCallback(mixBuffer, g_bufferSizeFrames, g_sampleRate, g_channels, g_audioUserData);
-        }
-
-        nextDue += duration_cast<clock::duration>(period);
-        auto now = clock::now();
-        if (now >= nextDue)
-            nextDue = now + duration_cast<clock::duration>(period);
     }
 
-    delete[] mixBuffer;
-    delete[] tempBuffer;
+    for (const auto& e : ended)
+        e.callback(e.hsync, e.hstream, 0, e.userdata);
+
+    std::lock_guard<std::mutex> lock(g_audioMutex);
+    if (g_audioCallback)
+        g_audioCallback(pFramesOut, static_cast<size_t>(frameCount), g_sampleRate, g_channels, g_audioUserData);
 }
 
 /******************************************************
@@ -464,6 +394,20 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	g_channels = channels;
 	g_bufferSizeFrames = bufferSizeFrames;
 
+	g_engine = new ma_engine();
+	g_context = new ma_context();
+	if (altsound_ma_engine_init_null_device(g_channels, g_sampleRate, g_bufferSizeFrames,
+			AltsoundEngineProcess, nullptr, g_context, g_engine) != MA_SUCCESS) {
+		ALT_ERROR(0, "FAILED to initialize miniAudio engine");
+		delete g_engine;
+		g_engine = nullptr;
+		delete g_context;
+		g_context = nullptr;
+		ALT_OUTDENT;
+		ALT_DEBUG(0, "END AltSoundInit()");
+		return false;
+	}
+
 	// initialize channel_stream storage
 	std::fill(channel_stream.begin(), channel_stream.end(), nullptr);
 
@@ -526,8 +470,7 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	g_cmdData.cmd_filter = 0;
 	std::fill_n(g_cmdData.cmd_buffer, ALT_MAX_CMDS, ~0);
 
-	g_audioRunning.store(true);
-	g_audioThread = std::thread(AudioMixingThread);
+	altsound_ma_engine_start(g_engine);
 
 	ALT_DEBUG(0, "END AltSoundInit()");
 	return true;
@@ -637,9 +580,6 @@ ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 	}
 	ALT_INFO(0, "SUCCESS processor::handleCmd()");
 
-	// Wake up audio thread immediately for responsive sound triggering
-	g_audioWakeup.notify_one();
-
 	altsound_postprocess_commands(cmd_combined);
 
 	ALT_OUTDENT;
@@ -698,14 +638,26 @@ ALTSOUNDAPI void AltSoundShutdown()
 	ALT_DEBUG(0, "BEGIN AltSoundShutdown()");
 	ALT_INDENT;
 
-	g_audioRunning.store(false);
-	if (g_audioThread.joinable()) {
-		g_audioThread.join();
-	}
+	// Stop miniAudio's audio thread first so no further mixing/onProcess
+	// callbacks run while we tear down the streams and engine.
+	if (g_engine)
+		altsound_ma_engine_stop(g_engine);
 
 	if (g_pProcessor) {
 		delete g_pProcessor;
 		g_pProcessor = NULL;
+	}
+
+	if (g_engine) {
+		altsound_ma_engine_uninit(g_engine);
+		delete g_engine;
+		g_engine = nullptr;
+	}
+
+	if (g_context) {
+		altsound_ma_context_uninit(g_context);
+		delete g_context;
+		g_context = nullptr;
 	}
 
 	std::lock_guard<std::mutex> lock(g_audioMutex);

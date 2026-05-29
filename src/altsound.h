@@ -1,8 +1,8 @@
 #pragma once
 
 #define ALTSOUND_VERSION_MAJOR 0 // X Digits
-#define ALTSOUND_VERSION_MINOR 5 // Max 2 Digits
-#define ALTSOUND_VERSION_PATCH 1 // Max 2 Digits
+#define ALTSOUND_VERSION_MINOR 6 // Max 2 Digits
+#define ALTSOUND_VERSION_PATCH 0 // Max 2 Digits
 
 #define _ALTSOUND_STR(x) #x
 #define ALTSOUND_STR(x) _ALTSOUND_STR(x)

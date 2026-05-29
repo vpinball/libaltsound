@@ -15,6 +15,7 @@ extern std::mutex g_streamMapMutex;
 extern uint32_t g_nextStreamId;
 extern uint32_t g_channels;
 extern uint32_t g_sampleRate;
+extern ma_engine* g_engine;
 
 unsigned int MiniAudio_StreamCreateFile(bool mem, const char* file, unsigned long long offset, unsigned long long length, unsigned int flags)
 {
@@ -33,13 +34,28 @@ unsigned int MiniAudio_StreamCreateFile(bool mem, const char* file, unsigned lon
 		return MINIAUDIO_NO_STREAM;
 	}
 
+	ma_sound* sound = new ma_sound();
+	result = altsound_ma_sound_init_from_decoder(g_engine, decoder, MA_SOUND_FLAG_NO_SPATIALIZATION | MA_SOUND_FLAG_NO_PITCH, sound);
+	if (result != MA_SUCCESS) {
+		MiniAudio_ErrorSetCode(result);
+		altsound_ma_decoder_uninit(decoder);
+		delete decoder;
+		delete sound;
+		return MINIAUDIO_NO_STREAM;
+	}
+
+	const bool looping = (flags & MINIAUDIO_SAMPLE_LOOP) != 0;
+	altsound_ma_sound_set_looping(sound, looping ? MA_TRUE : MA_FALSE);
+
 	unsigned int hstream = g_nextStreamId++;
-	
+
 	std::lock_guard<std::mutex> lock(g_streamMapMutex);
 	g_streamMap[hstream] = {
 		.decoder = decoder,
+		.sound = sound,
 		.playing = false,
 		.paused = false,
+		.looping = looping,
 		.sample_rate = decoder->outputSampleRate,
 		.channels = decoder->outputChannels,
 		.sync_callback = nullptr,
@@ -67,6 +83,8 @@ int MiniAudio_ChannelSetAttribute(unsigned int hstream, unsigned int attrib, flo
 	switch (attrib) {
 		case MINIAUDIO_ATTRIB_VOL:
 			it->second.volume = value;
+			if (it->second.sound)
+				altsound_ma_sound_set_volume(it->second.sound, value);
 			MiniAudio_ErrorSetCode(MA_SUCCESS);
 			return 1;
 	}
@@ -139,8 +157,13 @@ int MiniAudio_ChannelPlay(unsigned int hstream, bool restart)
 		return 0;
 	}
 
-	if (restart && it->second.decoder) {
-		altsound_ma_decoder_seek_to_pcm_frame(it->second.decoder, 0);
+	if (restart && it->second.sound) {
+		altsound_ma_sound_seek_to_pcm_frame(it->second.sound, 0);
+	}
+
+	if (it->second.sound) {
+		altsound_ma_sound_set_volume(it->second.sound, it->second.volume);
+		altsound_ma_sound_start(it->second.sound);
 	}
 
 	it->second.playing = true;
@@ -163,6 +186,9 @@ int MiniAudio_ChannelPause(unsigned int hstream)
 		return 0;
 	}
 
+	if (it->second.sound)
+		altsound_ma_sound_stop(it->second.sound);
+
 	it->second.paused = true;
 	MiniAudio_ErrorSetCode(MA_SUCCESS);
 	return 1;
@@ -180,6 +206,11 @@ int MiniAudio_ChannelStop(unsigned int hstream)
 	if (it == g_streamMap.end()) {
 		MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
 		return 0;
+	}
+
+	if (it->second.sound) {
+		altsound_ma_sound_stop(it->second.sound);
+		altsound_ma_sound_seek_to_pcm_frame(it->second.sound, 0);
 	}
 
 	it->second.playing = false;
@@ -200,6 +231,11 @@ int MiniAudio_StreamFree(unsigned int hstream)
 	if (it == g_streamMap.end()) {
 		MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
 		return 0;
+	}
+
+	if (it->second.sound) {
+		altsound_ma_sound_uninit(it->second.sound);
+		delete it->second.sound;
 	}
 
 	if (it->second.decoder) {

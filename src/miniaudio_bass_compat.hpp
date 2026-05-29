@@ -14,12 +14,15 @@
 #define MINIAUDIO_SAMPLE_LOOP 0x4
 
 struct ma_decoder;
+struct ma_sound;
 typedef void (ALTSOUNDCALLBACK *SYNCPROC)(unsigned int hsync, unsigned int hstream, unsigned int data, void *user);
 
 struct _internal_stream_data {
 	ma_decoder* decoder = nullptr;
+	ma_sound* sound = nullptr;
 	bool playing = false;
 	bool paused = false;
+	bool looping = false;
 	uint32_t sample_rate = 44100;
 	uint32_t channels = 2;
 	float volume = 1.0f;

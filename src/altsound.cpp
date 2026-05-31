@@ -53,33 +53,15 @@ static uint32_t g_bufferSizeFrames = 256;
  * forward to the host. miniAudio handles all timing, throttling and buffering.
  ******************************************************/
 
-struct EndedStream {
-    SYNCPROC callback;
-    unsigned int hsync;
-    unsigned int hstream;
-    void* userdata;
-};
-
 static void AltsoundEngineProcess(void* pUserData, float* pFramesOut, ma_uint64 frameCount)
 {
-    // Detect non-looping streams that reached their end so the registered
-    // end-of-stream callbacks fire exactly once, outside of any lock.
+    // Streams that just reached their end were queued by the miniAudio end
+    // callback. Fire their SYNCPROCs here (safe point, after the read), which
+    // frees the sounds and adjusts ducking.
     std::vector<EndedStream> ended;
     {
-        std::lock_guard<std::mutex> lock(io_mutex);
-        std::lock_guard<std::mutex> streamLock(g_streamMapMutex);
-        for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
-            AltsoundStreamInfo* stream = channel_stream[i];
-            if (stream && stream->hstream != MINIAUDIO_NO_STREAM) {
-                auto it = g_streamMap.find(stream->hstream);
-                if (it != g_streamMap.end() && it->second.sound && it->second.playing && !it->second.paused
-                    && !it->second.looping && altsound_ma_sound_at_end(it->second.sound)) {
-                    it->second.playing = false;
-                    if (it->second.sync_callback)
-                        ended.push_back({ it->second.sync_callback, stream->hsync, stream->hstream, it->second.sync_userdata });
-                }
-            }
-        }
+        std::lock_guard<std::mutex> lock(g_endedMutex);
+        ended.swap(g_endedStreams);
     }
 
     for (const auto& e : ended)
@@ -642,6 +624,13 @@ ALTSOUNDAPI void AltSoundShutdown()
 	// callbacks run while we tear down the streams and engine.
 	if (g_engine)
 		altsound_ma_engine_stop(g_engine);
+
+	// Discard any end-of-stream notifications that were never drained; the
+	// streams they reference are about to be freed.
+	{
+		std::lock_guard<std::mutex> lock(g_endedMutex);
+		g_endedStreams.clear();
+	}
 
 	if (g_pProcessor) {
 		delete g_pProcessor;

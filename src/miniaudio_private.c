@@ -131,7 +131,7 @@ ma_result altsound_ma_sound_seek_to_pcm_frame(ma_sound* pSound, ma_uint64 frameI
     return ma_sound_seek_to_pcm_frame(pSound, frameIndex);
 }
 
-ma_bool32 altsound_ma_sound_at_end(const ma_sound* pSound)
+void altsound_ma_sound_set_end_callback(ma_sound* pSound, ma_sound_end_proc callback, void* pUserData)
 {
-    return ma_sound_at_end(pSound);
+    ma_sound_set_end_callback(pSound, callback, pUserData);
 }

@@ -17,6 +17,29 @@ extern uint32_t g_channels;
 extern uint32_t g_sampleRate;
 extern ma_engine* g_engine;
 
+std::vector<EndedStream> g_endedStreams;
+std::mutex g_endedMutex;
+
+// Fired by miniAudio (audio thread) the moment a non-looping sound reaches its
+// end. We only mark the stream and queue its SYNCPROC here; the actual firing
+// (which frees the sound) happens later from the engine's onProcess, as the
+// sound must not be uninitialized from within this callback.
+static void MiniAudio_StreamEndCallback(void* pUserData, ma_sound* pSound)
+{
+	const unsigned int hstream = static_cast<unsigned int>(reinterpret_cast<uintptr_t>(pUserData));
+
+	std::lock_guard<std::mutex> lock(g_streamMapMutex);
+	auto it = g_streamMap.find(hstream);
+	if (it == g_streamMap.end())
+		return;
+
+	it->second.playing = false;
+	if (it->second.sync_callback) {
+		std::lock_guard<std::mutex> endLock(g_endedMutex);
+		g_endedStreams.push_back({ it->second.sync_callback, it->second.hsync, hstream, it->second.sync_userdata });
+	}
+}
+
 unsigned int MiniAudio_StreamCreateFile(bool mem, const char* file, unsigned long long offset, unsigned long long length, unsigned int flags)
 {
 	if (!file) {
@@ -48,6 +71,8 @@ unsigned int MiniAudio_StreamCreateFile(bool mem, const char* file, unsigned lon
 	altsound_ma_sound_set_looping(sound, looping ? MA_TRUE : MA_FALSE);
 
 	unsigned int hstream = g_nextStreamId++;
+
+	altsound_ma_sound_set_end_callback(sound, MiniAudio_StreamEndCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(hstream)));
 
 	std::lock_guard<std::mutex> lock(g_streamMapMutex);
 	g_streamMap[hstream] = {
@@ -136,6 +161,7 @@ unsigned int MiniAudio_ChannelSetSync(unsigned int hstream, unsigned int type, u
 
 		static unsigned int sync_id = 1;
 		unsigned int hsync = sync_id++;
+		it->second.hsync = hsync;
 		MiniAudio_ErrorSetCode(MA_SUCCESS);
 		return hsync;
 	}

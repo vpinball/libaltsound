@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
+#include <mutex>
 #include "altsound_data.hpp"
 
 #define MINIAUDIO_ATTRIB_VOL 1
@@ -14,18 +16,36 @@
 #define MINIAUDIO_SAMPLE_LOOP 0x4
 
 struct ma_decoder;
+struct ma_sound;
 typedef void (ALTSOUNDCALLBACK *SYNCPROC)(unsigned int hsync, unsigned int hstream, unsigned int data, void *user);
 
 struct _internal_stream_data {
 	ma_decoder* decoder = nullptr;
+	ma_sound* sound = nullptr;
 	bool playing = false;
 	bool paused = false;
+	bool looping = false;
 	uint32_t sample_rate = 44100;
 	uint32_t channels = 2;
 	float volume = 1.0f;
 	SYNCPROC sync_callback = nullptr;
 	void* sync_userdata = nullptr;
+	unsigned int hsync = 0;
 };
+
+// An ended (non-looping) stream queued by the miniAudio end callback (audio
+// thread) to have its SYNCPROC fired from a safe point (the engine's onProcess,
+// after the read), since the SYNCPROC frees the sound which must not happen
+// from within the end callback.
+struct EndedStream {
+	SYNCPROC callback;
+	unsigned int hsync;
+	unsigned int hstream;
+	void* userdata;
+};
+
+extern std::vector<EndedStream> g_endedStreams;
+extern std::mutex g_endedMutex;
 
 extern uint32_t g_sampleRate;
 extern uint32_t g_channels;

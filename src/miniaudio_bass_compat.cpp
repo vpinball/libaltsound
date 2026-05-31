@@ -15,6 +15,30 @@ extern std::mutex g_streamMapMutex;
 extern uint32_t g_nextStreamId;
 extern uint32_t g_channels;
 extern uint32_t g_sampleRate;
+extern ma_engine* g_engine;
+
+std::vector<EndedStream> g_endedStreams;
+std::mutex g_endedMutex;
+
+// Fired by miniAudio (audio thread) the moment a non-looping sound reaches its
+// end. We only mark the stream and queue its SYNCPROC here; the actual firing
+// (which frees the sound) happens later from the engine's onProcess, as the
+// sound must not be uninitialized from within this callback.
+static void MiniAudio_StreamEndCallback(void* pUserData, ma_sound* pSound)
+{
+	const unsigned int hstream = static_cast<unsigned int>(reinterpret_cast<uintptr_t>(pUserData));
+
+	std::lock_guard<std::mutex> lock(g_streamMapMutex);
+	auto it = g_streamMap.find(hstream);
+	if (it == g_streamMap.end())
+		return;
+
+	it->second.playing = false;
+	if (it->second.sync_callback) {
+		std::lock_guard<std::mutex> endLock(g_endedMutex);
+		g_endedStreams.push_back({ it->second.sync_callback, it->second.hsync, hstream, it->second.sync_userdata });
+	}
+}
 
 unsigned int MiniAudio_StreamCreateFile(bool mem, const char* file, unsigned long long offset, unsigned long long length, unsigned int flags)
 {
@@ -33,13 +57,30 @@ unsigned int MiniAudio_StreamCreateFile(bool mem, const char* file, unsigned lon
 		return MINIAUDIO_NO_STREAM;
 	}
 
+	ma_sound* sound = new ma_sound();
+	result = altsound_ma_sound_init_from_decoder(g_engine, decoder, MA_SOUND_FLAG_NO_SPATIALIZATION | MA_SOUND_FLAG_NO_PITCH, sound);
+	if (result != MA_SUCCESS) {
+		MiniAudio_ErrorSetCode(result);
+		altsound_ma_decoder_uninit(decoder);
+		delete decoder;
+		delete sound;
+		return MINIAUDIO_NO_STREAM;
+	}
+
+	const bool looping = (flags & MINIAUDIO_SAMPLE_LOOP) != 0;
+	altsound_ma_sound_set_looping(sound, looping ? MA_TRUE : MA_FALSE);
+
 	unsigned int hstream = g_nextStreamId++;
-	
+
+	altsound_ma_sound_set_end_callback(sound, MiniAudio_StreamEndCallback, reinterpret_cast<void*>(static_cast<uintptr_t>(hstream)));
+
 	std::lock_guard<std::mutex> lock(g_streamMapMutex);
 	g_streamMap[hstream] = {
 		.decoder = decoder,
+		.sound = sound,
 		.playing = false,
 		.paused = false,
+		.looping = looping,
 		.sample_rate = decoder->outputSampleRate,
 		.channels = decoder->outputChannels,
 		.sync_callback = nullptr,
@@ -67,6 +108,8 @@ int MiniAudio_ChannelSetAttribute(unsigned int hstream, unsigned int attrib, flo
 	switch (attrib) {
 		case MINIAUDIO_ATTRIB_VOL:
 			it->second.volume = value;
+			if (it->second.sound)
+				altsound_ma_sound_set_volume(it->second.sound, value);
 			MiniAudio_ErrorSetCode(MA_SUCCESS);
 			return 1;
 	}
@@ -118,6 +161,7 @@ unsigned int MiniAudio_ChannelSetSync(unsigned int hstream, unsigned int type, u
 
 		static unsigned int sync_id = 1;
 		unsigned int hsync = sync_id++;
+		it->second.hsync = hsync;
 		MiniAudio_ErrorSetCode(MA_SUCCESS);
 		return hsync;
 	}
@@ -139,8 +183,13 @@ int MiniAudio_ChannelPlay(unsigned int hstream, bool restart)
 		return 0;
 	}
 
-	if (restart && it->second.decoder) {
-		altsound_ma_decoder_seek_to_pcm_frame(it->second.decoder, 0);
+	if (restart && it->second.sound) {
+		altsound_ma_sound_seek_to_pcm_frame(it->second.sound, 0);
+	}
+
+	if (it->second.sound) {
+		altsound_ma_sound_set_volume(it->second.sound, it->second.volume);
+		altsound_ma_sound_start(it->second.sound);
 	}
 
 	it->second.playing = true;
@@ -163,6 +212,9 @@ int MiniAudio_ChannelPause(unsigned int hstream)
 		return 0;
 	}
 
+	if (it->second.sound)
+		altsound_ma_sound_stop(it->second.sound);
+
 	it->second.paused = true;
 	MiniAudio_ErrorSetCode(MA_SUCCESS);
 	return 1;
@@ -180,6 +232,11 @@ int MiniAudio_ChannelStop(unsigned int hstream)
 	if (it == g_streamMap.end()) {
 		MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
 		return 0;
+	}
+
+	if (it->second.sound) {
+		altsound_ma_sound_stop(it->second.sound);
+		altsound_ma_sound_seek_to_pcm_frame(it->second.sound, 0);
 	}
 
 	it->second.playing = false;
@@ -200,6 +257,11 @@ int MiniAudio_StreamFree(unsigned int hstream)
 	if (it == g_streamMap.end()) {
 		MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
 		return 0;
+	}
+
+	if (it->second.sound) {
+		altsound_ma_sound_uninit(it->second.sound);
+		delete it->second.sound;
 	}
 
 	if (it->second.decoder) {

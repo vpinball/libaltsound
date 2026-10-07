@@ -290,6 +290,17 @@ void altsound_preprocess_commands(int cmd)
 			break;
 		}
 
+		case ALTSOUND_HARDWARE_GEN_BY17: // PinMAME logs one byte per sound command
+		case ALTSOUND_HARDWARE_GEN_BY35: {
+			ALT_DEBUG(0, "Hardware Generation: BY17, BY35");
+
+			g_cmdData.stored_command = 0;
+			g_cmdData.cmd_counter = 0;
+			g_cmdData.cmd_filter = 0;
+
+			break;
+		}
+
 		default: break;
 	}
 

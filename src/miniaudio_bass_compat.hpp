@@ -33,6 +33,7 @@ struct _internal_stream_data {
 	uint32_t sample_rate = 44100;
 	uint32_t channels = 2;
 	float volume = 1.0f;
+	bool fading = false; // a volume slide (fader) was started on the sound
 	SYNCPROC sync_callback = nullptr;
 	void* sync_userdata = nullptr;
 	unsigned int hsync = 0;
@@ -69,6 +70,7 @@ inline void MiniAudio_ErrorSetCode(int ma_err)
 unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsigned long long length, bool loop);
 bool MiniAudio_ChannelSetVolume(unsigned int hstream, float value);
 bool MiniAudio_ChannelGetVolume(unsigned int hstream, float& value);
+bool MiniAudio_ChannelSlideVolume(unsigned int hstream, float value, unsigned int time_ms);
 unsigned int MiniAudio_ChannelSetSync(unsigned int hstream, unsigned int type, void* proc, void* user);
 bool MiniAudio_ChannelPlay(unsigned int hstream, bool restart);
 bool MiniAudio_ChannelPause(unsigned int hstream);

@@ -71,6 +71,10 @@ public:
 	void setGlobalVol(const float vol_in);
 	static float getGlobalVol();
 
+	// duck release time accessor/mutator
+	static void setDuckReleaseMs(const unsigned int release_ms_in);
+	static unsigned int getDuckReleaseMs();
+
 	// command skip count accessor/mutator
 	void setSkipCount(const unsigned int skip_count_in);
 	unsigned int getSkipCount() const;
@@ -103,8 +107,9 @@ protected: // functions
 	// find available sound channel for sample playback
 	static bool findFreeChannel(unsigned int& channel_out);
 
-	// set volume on provided stream
-	static bool setStreamVolume(unsigned int hstream, const float vol_in);
+	// set volume on provided stream. A higher volume is reached over
+	// fade_ms when fade_ms > 0
+	static bool setStreamVolume(unsigned int hstream, const float vol_in, const unsigned int fade_ms = 0);
 
 	// get volume on provided stream, -FLT_MAX on error
 	static float getStreamVolume(unsigned int hstream);
@@ -131,6 +136,7 @@ private: // data
 	bool use_rom_ctrl = true;
 	static float global_vol;
 	static float master_vol;
+	static unsigned int duck_release_ms;
 	unsigned int skip_count;
 };
 
@@ -182,6 +188,18 @@ inline float AltsoundProcessorBase::getMasterVol() {
 
 inline float AltsoundProcessorBase::getGlobalVol() {
 	return global_vol;
+}
+
+// ----------------------------------------------------------------------------
+
+inline void AltsoundProcessorBase::setDuckReleaseMs(const unsigned int release_ms_in) {
+	duck_release_ms = release_ms_in;
+}
+
+// ----------------------------------------------------------------------------
+
+inline unsigned int AltsoundProcessorBase::getDuckReleaseMs() {
+	return duck_release_ms;
 }
 
 // ----------------------------------------------------------------------------

@@ -619,9 +619,9 @@ void ALTSOUNDCALLBACK AltsoundProcessor::jingle_callback(unsigned int handle, un
 		const float min_ducking = getMinDucking();
 		ALT_INFO(0, "Min ducking value: %.02f", min_ducking);
 
-		// set new music volume
+		// set new music volume (ducking released over duck_release_ms)
 		const float adj_mus_vol = cur_mus_stream->gain * min_ducking;
-		setStreamVolume(mus_hstream, adj_mus_vol);
+		setStreamVolume(mus_hstream, adj_mus_vol, getDuckReleaseMs());
 
 		// DAR@20230622
 		// This is a kludgy way to make sure we only resume paused playback
@@ -688,9 +688,9 @@ void ALTSOUNDCALLBACK AltsoundProcessor::sfx_callback(unsigned int handle, unsig
 		const float min_ducking = getMinDucking();
 		ALT_INFO(0, "Min ducking value: %.02f", min_ducking);
 
-		// set new music volume
+		// set new music volume (ducking released over duck_release_ms)
 		const float adj_mus_vol = cur_mus_stream->gain * min_ducking;
-		setStreamVolume(mus_hstream, adj_mus_vol);
+		setStreamVolume(mus_hstream, adj_mus_vol, getDuckReleaseMs());
 	}
 
 	ALT_OUTDENT;

@@ -831,8 +831,8 @@ void ALTSOUNDCALLBACK GSoundProcessor::common_callback(unsigned int handle, unsi
 		channel_stream[inst_ch_idx] = nullptr;
 	}
 
-	// re-adjust stream volumes
-	adjustStreamVolumes();
+	// re-adjust stream volumes (ducking released over duck_release_ms)
+	adjustStreamVolumes(getDuckReleaseMs());
 
 	// update paused streams
 	processPausedStreams();
@@ -845,7 +845,7 @@ void ALTSOUNDCALLBACK GSoundProcessor::common_callback(unsigned int handle, unsi
 
 // ----------------------------------------------------------------------------
 
-bool GSoundProcessor::adjustStreamVolumes()
+bool GSoundProcessor::adjustStreamVolumes(const unsigned int fade_ms)
 {
 	ALT_INFO(0, "BEGIN GSoundProcessor::adjustStreamVolumes()");
 	ALT_INDENT;
@@ -886,7 +886,7 @@ bool GSoundProcessor::adjustStreamVolumes()
 		ALT_DEBUG(1, "%s ducking volume: %.02f", toString(stream_type), ducking_value);
 
 		const float adjusted_vol = stream.gain * ducking_value * grp_vol;
-		if (!setStreamVolume(stream.hstream, adjusted_vol)) {
+		if (!setStreamVolume(stream.hstream, adjusted_vol, fade_ms)) {
 			ALT_ERROR(1, "FAILED setStreamVolume()");
 			success = false;
 		}

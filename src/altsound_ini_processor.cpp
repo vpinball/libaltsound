@@ -99,6 +99,25 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 		return false;
 	}
 
+	// get duck release time
+	string duck_release_str;
+	inipp::get_value(ini.sections["system"], "duck_release_ms", duck_release_str);
+	try {
+		if (!duck_release_str.empty()) {
+			const int val = std::stoi(duck_release_str);
+			duck_release_ms = clamp(val, 0, 10000);
+			ALT_INFO(0, "Parsed \"duck_release_ms\": %u", duck_release_ms);
+		}
+	}
+	catch (const std::invalid_argument& e) {
+		ALT_ERROR(0, "Invalid number format while parsing duck_release_ms value: %s\n", duck_release_str.c_str());
+		return false;
+	}
+	catch (const std::out_of_range& e) {
+		ALT_ERROR(0, "Number out of range while parsing duck_release_ms value: %s\n", duck_release_str.c_str());
+		return false;
+	}
+
 	// get AltSound format type
 	inipp::get_value(ini.sections["format"], "format", altsound_format);
 	altsound_format = normalizeString(altsound_format);
@@ -590,12 +609,18 @@ bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
 		";                     specify how many initial commands to ignore at startup.\n"
 		";                     NOTE:  If the record_sound_cmds flag is set, the skipped\n"
 		";                     commands will be included in the recording file.\n"
+		";\n"
+		"; duck_release_ms   : when a sample that ducks other samples ends, their volume\n"
+		";                     comes back over this many milliseconds instead of at\n"
+		";                     once (many sound boards fade the music back in over\n"
+		";                     about 150 ms). 0, the default, restores it at once\n"
 		"; ----------------------------------------------------------------------------\n"
 		"\n"
 		"[system]\n"
 		"record_sound_cmds = 0\n"
 		"rom_volume_ctrl = 1\n"
 		"cmd_skip_count = 0\n"
+		"duck_release_ms = 0\n"
 		"\n"
 		"; ----------------------------------------------------------------------------\n"
 		"; There are three supported AltSound formats:\n"

@@ -454,6 +454,7 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	g_pProcessor->romControlsVol(ini_proc.usingRomVolumeControl());
 	g_pProcessor->recordSoundCmds(ini_proc.recordSoundCmds());
 	g_pProcessor->setSkipCount(ini_proc.getSkipCount());
+	g_pProcessor->useLoopPoints(ini_proc.usingLoopPoints());
 
 	// perform processor initialization (load samples, etc)
 	g_pProcessor->init();

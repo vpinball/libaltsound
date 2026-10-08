@@ -239,7 +239,7 @@ bool AltsoundProcessorBase::createStream(void* syncproc_in, AltsoundStreamInfo* 
 	const bool loop = stream_out->loop;
 
 	// Create playback stream
-	unsigned int hstream = MiniAudio_StreamCreateFile(false, stream_out->sample_path, 0, loop);
+	unsigned int hstream = MiniAudio_StreamCreateFile(false, stream_out->sample_path, 0, loop, use_loop_points);
 
 	if (hstream == MINIAUDIO_NO_STREAM) {
 		// Failed to create stream

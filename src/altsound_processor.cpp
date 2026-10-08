@@ -773,7 +773,11 @@ float AltsoundProcessor::getMinDucking()
 				continue;
 			}
 
-			min_ducking = std::min(min_ducking, stream->ducking);
+			if (stackDucking())
+				// overlapping ducks add up (in dB)
+				min_ducking *= std::min(stream->ducking, 1.0f);
+			else
+				min_ducking = std::min(min_ducking, stream->ducking);
 		}
 	}
 	ALT_INFO(0, "Num active streams: %d", num_x_streams);

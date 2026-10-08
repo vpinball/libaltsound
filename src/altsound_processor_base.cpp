@@ -23,6 +23,7 @@ extern StreamArray channel_stream;
 // initialize static data members
 float AltsoundProcessorBase::global_vol = 1.0f;
 float AltsoundProcessorBase::master_vol = 1.0f;
+bool AltsoundProcessorBase::stack_ducking = false;
 
 // reference to sound command recording status
 extern bool rec_snd_cmds;

@@ -78,7 +78,8 @@ private: // functions
 	// Stop currently-playing MUSIC stream
 	bool stopJingleStream();
 
-	// get lowest ducking value of all active streams
+	// get lowest ducking value of all active streams, or their product
+	// when overlapping ducks stack
 	static float getMinDucking();
 
 	// process music commands

@@ -135,3 +135,135 @@ void altsound_ma_sound_set_end_callback(ma_sound* pSound, ma_sound_end_proc call
 {
     ma_sound_set_end_callback(pSound, callback, pUserData);
 }
+
+ma_result altsound_ma_decoder_set_loop_point(ma_decoder* pDecoder, ma_uint64 loopBeg, ma_uint64 loopEnd)
+{
+    return ma_data_source_set_loop_point_in_pcm_frames((ma_data_source*)pDecoder, loopBeg, loopEnd);
+}
+
+typedef struct {
+    ma_bool32 hasStart;
+    ma_bool32 hasLength;
+    ma_uint64 start;
+    ma_uint64 length;
+} altsound_loop_tags;
+
+static ma_bool32 altsound_key_equals(const char* pKey, size_t keyLen, const char* pName)
+{
+    size_t i;
+    for (i = 0; i < keyLen; ++i) {
+        const char c = (pKey[i] >= 'a' && pKey[i] <= 'z') ? (char)(pKey[i] - 'a' + 'A') : pKey[i];
+        if (pName[i] == '\0' || c != pName[i])
+            return MA_FALSE;
+    }
+    return pName[keyLen] == '\0';
+}
+
+static void altsound_parse_loop_tag(altsound_loop_tags* pTags, const char* pComment, size_t length)
+{
+    char buf[64];
+    const char* pValue;
+    size_t keyLen;
+
+    if (length >= sizeof(buf))
+        return;
+    memcpy(buf, pComment, length);
+    buf[length] = '\0';
+
+    pValue = strchr(buf, '=');
+    if (pValue == NULL)
+        return;
+    keyLen = (size_t)(pValue - buf);
+    pValue++;
+    if (*pValue < '0' || *pValue > '9')
+        return;
+
+    if (altsound_key_equals(buf, keyLen, "LOOPSTART")) {
+        pTags->start = strtoull(pValue, NULL, 10);
+        pTags->hasStart = MA_TRUE;
+    }
+    else if (altsound_key_equals(buf, keyLen, "LOOPLENGTH")) {
+        pTags->length = strtoull(pValue, NULL, 10);
+        pTags->hasLength = MA_TRUE;
+    }
+}
+
+static void altsound_flac_meta_callback(void* pUserData, ma_dr_flac_metadata* pMetadata)
+{
+    altsound_loop_tags* pTags = (altsound_loop_tags*)pUserData;
+    ma_dr_flac_vorbis_comment_iterator it;
+    const char* pComment;
+    ma_uint32 length;
+
+    if (pMetadata->type != MA_DR_FLAC_METADATA_BLOCK_TYPE_VORBIS_COMMENT)
+        return;
+
+    ma_dr_flac_init_vorbis_comment_iterator(&it, pMetadata->data.vorbis_comment.commentCount, pMetadata->data.vorbis_comment.pComments);
+    while ((pComment = ma_dr_flac_next_vorbis_comment(&it, &length)) != NULL)
+        altsound_parse_loop_tag(pTags, pComment, length);
+}
+
+// Loop points of a sample file, in PCM frames at the file's own sample rate:
+// the first loop of a WAV "smpl" chunk, or the LOOPSTART/LOOPLENGTH tags of a
+// FLAC or Ogg Vorbis file. The loop is [*pLoopBeg, *pLoopEnd), end excluded.
+// Returns MA_FALSE when the file has no usable loop.
+ma_bool32 altsound_read_loop_points(const char* pFilePath, ma_uint64* pLoopBeg, ma_uint64* pLoopEnd, ma_uint32* pSampleRate)
+{
+    ma_uint64 beg = 0, end = 0, total = 0;
+    ma_uint32 sampleRate = 0;
+    ma_bool32 found = MA_FALSE;
+    altsound_loop_tags tags = { MA_FALSE, MA_FALSE, 0, 0 };
+    ma_dr_wav wav;
+    ma_dr_flac* pFlac;
+    stb_vorbis* pVorbis;
+    int vorbisError = 0;
+
+    if (ma_dr_wav_init_file_with_metadata(&wav, pFilePath, 0, NULL)) {
+        ma_uint32 i;
+        for (i = 0; i < wav.metadataCount; ++i) {
+            const ma_dr_wav_metadata* pMeta = &wav.pMetadata[i];
+            if (pMeta->type == ma_dr_wav_metadata_type_smpl && pMeta->data.smpl.sampleLoopCount > 0 && pMeta->data.smpl.pLoops != NULL) {
+                const ma_dr_wav_smpl_loop* pLoop = &pMeta->data.smpl.pLoops[0];
+                if (pLoop->type == ma_dr_wav_smpl_loop_type_forward) {
+                    // the smpl end point is the last frame played in the loop
+                    beg = pLoop->firstSampleOffset;
+                    end = (ma_uint64)pLoop->lastSampleOffset + 1;
+                    found = MA_TRUE;
+                }
+                break;
+            }
+        }
+        sampleRate = wav.sampleRate;
+        total = wav.totalPCMFrameCount;
+        ma_dr_wav_uninit(&wav);
+    }
+    else if ((pFlac = ma_dr_flac_open_file_with_metadata(pFilePath, altsound_flac_meta_callback, &tags, NULL)) != NULL) {
+        sampleRate = pFlac->sampleRate;
+        total = pFlac->totalPCMFrameCount;
+        ma_dr_flac_close(pFlac);
+    }
+    else if ((pVorbis = stb_vorbis_open_filename(pFilePath, &vorbisError, NULL)) != NULL) {
+        const stb_vorbis_comment comments = stb_vorbis_get_comment(pVorbis);
+        int i;
+        for (i = 0; i < comments.comment_list_length; ++i)
+            altsound_parse_loop_tag(&tags, comments.comment_list[i], strlen(comments.comment_list[i]));
+        sampleRate = stb_vorbis_get_info(pVorbis).sample_rate;
+        total = stb_vorbis_stream_length_in_samples(pVorbis);
+        stb_vorbis_close(pVorbis);
+    }
+
+    if (!found && tags.hasStart && tags.hasLength) {
+        beg = tags.start;
+        end = tags.start + tags.length;
+        found = MA_TRUE;
+    }
+
+    // a loop that does not fit in the file is ignored (whole-file looping)
+    if (!found || beg >= end || end > total || sampleRate == 0)
+        return MA_FALSE;
+
+    *pLoopBeg = beg;
+    *pLoopEnd = end;
+    *pSampleRate = sampleRate;
+    return MA_TRUE;
+}

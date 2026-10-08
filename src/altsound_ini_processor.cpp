@@ -99,6 +99,12 @@ bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
 		return false;
 	}
 
+	// get loop points flag
+	string loop_points;
+	inipp::get_value(ini.sections["system"], "use_loop_points", loop_points);
+	use_loop_points = (loop_points == "1");
+	ALT_INFO(0, "Parsed \"use_loop_points\": %s", use_loop_points ? "true" : "false");
+
 	// get AltSound format type
 	inipp::get_value(ini.sections["format"], "format", altsound_format);
 	altsound_format = normalizeString(altsound_format);
@@ -590,12 +596,20 @@ bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
 		";                     specify how many initial commands to ignore at startup.\n"
 		";                     NOTE:  If the record_sound_cmds flag is set, the skipped\n"
 		";                     commands will be included in the recording file.\n"
+		";\n"
+		"; use_loop_points   : a looping sample that has loop points (the first loop of\n"
+		";                     a WAV \"smpl\" chunk, or LOOPSTART/LOOPLENGTH tags in a\n"
+		";                     FLAC or Ogg file) plays from its start once, then\n"
+		";                     repeats only the loop, like an intro + loop music on the\n"
+		";                     real sound board. Samples without loop points loop as a\n"
+		";                     whole file. This feature is turned off by default\n"
 		"; ----------------------------------------------------------------------------\n"
 		"\n"
 		"[system]\n"
 		"record_sound_cmds = 0\n"
 		"rom_volume_ctrl = 1\n"
 		"cmd_skip_count = 0\n"
+		"use_loop_points = 0\n"
 		"\n"
 		"; ----------------------------------------------------------------------------\n"
 		"; There are three supported AltSound formats:\n"

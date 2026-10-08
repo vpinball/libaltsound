@@ -466,6 +466,7 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	g_pProcessor->recordSoundCmds(ini_proc.recordSoundCmds());
 	g_pProcessor->setSkipCount(ini_proc.getSkipCount());
 	g_newSoundCommands = ini_proc.newSoundCommands();
+	g_pProcessor->setDuckReleaseMs(ini_proc.getDuckReleaseMs());
 
 	// perform processor initialization (load samples, etc)
 	g_pProcessor->init();

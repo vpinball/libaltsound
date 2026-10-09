@@ -509,6 +509,8 @@ ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* 
  * AltSoundProcessCommand
  ******************************************************/
 
+static unsigned int g_cmdBoard = 0; // sound board of the command being processed
+
 ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 {
 	ALT_DEBUG(0, "BEGIN AltSoundProcessCommand()");
@@ -559,7 +561,13 @@ ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 	ALT_DEBUG(0, "Command complete. Processing...");
 
 	// combine stored command with the current
-	const unsigned int cmd_combined = (g_cmdData.stored_command << 8) | cmd;
+	unsigned int cmd_combined = (g_cmdData.stored_command << 8) | cmd;
+
+	// System 11 machines with two sound boards: both take bytes 01..FF, so the commands of
+	// board 1 (the separate sound board) are 0x01xx when the pack has a sample for them
+	if (g_cmdBoard == 1 && (g_hardwareGen == ALTSOUND_HARDWARE_GEN_S11X || g_hardwareGen == ALTSOUND_HARDWARE_GEN_S11B2)
+		&& g_pProcessor->hasSample(0x0100 | cmd_combined))
+		cmd_combined |= 0x0100;
 
 	// Handle the resulting command
 	if (!ALT_CALL(g_pProcessor->handleCmd(cmd_combined))) {
@@ -580,6 +588,18 @@ ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 	ALT_DEBUG(0, "");
 
 	return true;
+}
+
+/******************************************************
+ * AltSoundProcessBoardCommand
+ ******************************************************/
+
+ALTSOUNDAPI bool AltSoundProcessBoardCommand(const unsigned int board, const unsigned int cmd, int attenuation)
+{
+	g_cmdBoard = board;
+	const bool result = AltSoundProcessCommand(cmd, attenuation);
+	g_cmdBoard = 0;
+	return result;
 }
 
 /******************************************************

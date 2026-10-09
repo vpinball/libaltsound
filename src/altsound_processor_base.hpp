@@ -75,6 +75,9 @@ public:
 	void setSkipCount(const unsigned int skip_count_in);
 	unsigned int getSkipCount() const;
 
+	// whether the pack has a sample for this command
+	bool hasSample(const unsigned int cmd_combined_in) { return getSample(cmd_combined_in) != ~0u; }
+
 public: // data
 
 protected: // functions

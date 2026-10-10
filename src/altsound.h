@@ -67,6 +67,7 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
 ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* userData);
 ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation);
+ALTSOUNDAPI bool AltSoundProcessBoardCommand(const unsigned int board, const unsigned int cmd, int attenuation);
 ALTSOUNDAPI void AltSoundPause(bool pause);
 ALTSOUNDAPI void AltSoundShutdown();
 

@@ -42,7 +42,7 @@ constexpr unsigned int UNSET_IDX = std::numeric_limits<unsigned int>::max();
 // ---------------------------------------------------------------------------
 
 AltsoundProcessor::AltsoundProcessor(const string& game_name_in,
-	                                 const string& vpm_path_in,
+	                                 const std::filesystem::path& vpm_path_in,
 	                                 const string& format_in)
 :AltsoundProcessorBase(game_name_in, vpm_path_in),
   format(format_in),
@@ -294,10 +294,7 @@ bool AltsoundProcessor::loadSamples()
 	ALT_DEBUG(0, "BEGIN AltsoundProcessor::loadSamples()");
 	ALT_INDENT;
 
-	string altsound_path = vpm_path; // in base class
-	if (!altsound_path.empty()) {
-		altsound_path += "altsound/" + game_name + '/';
-	}
+	const std::filesystem::path altsound_path = getAltsoundPath();
 
 	if (format == "altsound") {
 		AltsoundCsvParser csv_parser(altsound_path);

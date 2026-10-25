@@ -161,7 +161,7 @@ std::unordered_map<AltsoundSampleType, BehaviorInfo*> behavior_map = {
 // CTOR/DTOR
 // ---------------------------------------------------------------------------
 
-GSoundProcessor::GSoundProcessor(const string& _game_name, const string& _vpm_path)
+GSoundProcessor::GSoundProcessor(const string& _game_name, const std::filesystem::path& _vpm_path)
 : AltsoundProcessorBase(_game_name, _vpm_path),
   is_initialized(false),
   is_stable(true), // future use
@@ -393,12 +393,7 @@ bool GSoundProcessor::loadSamples()
 	ALT_DEBUG(0, "BEGIN GSoundProcessor::loadSamples()");
 	ALT_INDENT;
 
-	// DAR_TODO make vpm_path and game_name private w/accessors?
-	string altsound_path = vpm_path; // in base class
-
-	if (!altsound_path.empty()) {
-		altsound_path += string() + "altsound/" + game_name + '/';
-	}
+	const std::filesystem::path altsound_path = getAltsoundPath();
 
 	GSoundCsvParser csv_parser(altsound_path);
 

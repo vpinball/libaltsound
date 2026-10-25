@@ -38,7 +38,7 @@ public:
 
 	// Standard constructor
 	AltsoundProcessor(const string& game_name_in,
-	                  const string& vpm_path_in,
+	                  const std::filesystem::path& vpm_path_in,
 	                  const string& format_in);
 
 	// Destructor

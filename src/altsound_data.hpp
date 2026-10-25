@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdint>
+#include <filesystem>
 
 #define ALT_MAX_CMDS 4
 #define MINIAUDIO_NO_STREAM 0
@@ -152,7 +153,7 @@ const char* toString(AltsoundSampleType sampleType);
 AltsoundSampleType toSampleType(const std::string& type_in);
 
 // determine if the given path exists
-bool dir_exists(const std::string& path_in);
+bool dir_exists(const std::filesystem::path& path_in);
 
 // trim leading and trailing whitespace from string
 std::string trim(const std::string& str);

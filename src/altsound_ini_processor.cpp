@@ -28,13 +28,13 @@ extern BehaviorInfo overlay_behavior;
 // Functional code
 // ----------------------------------------------------------------------------
 
-bool AltsoundIniProcessor::parse_altsound_ini(const string& path_in)
+bool AltsoundIniProcessor::parse_altsound_ini(const std::filesystem::path& path_in)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundIniProcessor::parse_altsound_ini()");
 	ALT_INDENT;
 
 	// if altsound.ini does not exist, create it
-	string ini_path = path_in + "altsound.ini";
+	const std::filesystem::path ini_path = path_in / "altsound.ini";
 
 	std::ifstream file_in(ini_path);
 	if (!file_in.good()) {
@@ -488,7 +488,7 @@ bool AltsoundIniProcessor::parseDuckingProfile(const IniSection& ducking_section
 //
 // Once the .ini file is created, it can be modified to adjust preference.
 //
-string AltsoundIniProcessor::get_altsound_format(const string& path_in)
+string AltsoundIniProcessor::get_altsound_format(const std::filesystem::path& path_in)
 {
 	ALT_DEBUG(0, "BEGIN get_altsound_format()");
 	ALT_INDENT;
@@ -498,9 +498,9 @@ string AltsoundIniProcessor::get_altsound_format(const string& path_in)
 		{ "altsound.csv", "altsound" },
 	};
 
+	std::error_code ec;
 	for (const auto& fileAndFormat : filesAndFormats) {
-		std::ifstream ini(path_in + fileAndFormat.first);
-		if (ini) {
+		if (std::filesystem::is_regular_file(path_in / fileAndFormat.first, ec)) {
 			ALT_INFO(0, ("Using " + fileAndFormat.second + " format").c_str());
 			ALT_OUTDENT;
 			ALT_DEBUG(0, "END get_altsound_format()");
@@ -516,7 +516,7 @@ string AltsoundIniProcessor::get_altsound_format(const string& path_in)
 	};
 
 	if (std::any_of(directories.begin(), directories.end(), [&](const auto& directory) {
-		return dir_exists(path_in + directory);
+		return dir_exists(path_in / directory);
 	}))
 	{
 		ALT_INFO(0, "Using Legacy (PinSound) format");
@@ -545,7 +545,7 @@ string AltsoundIniProcessor::normalizeString(string str) {
 // Helper function to create the altsound.ini file
 // ---------------------------------------------------------------------------
 
-bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
+bool AltsoundIniProcessor::create_altsound_ini(const std::filesystem::path& path_in)
 {
 	ALT_DEBUG(0, "BEGIN AltsoundIniProcessor::create_altsound_ini()");
 	ALT_INDENT;
@@ -713,7 +713,7 @@ bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
 		"ducking_profile1 = sfx:65, music:65\n"
 		"ducking_profile2 = sfx:80, music:50\n";
 
-	const string ini_path = path_in + "altsound.ini";
+	const std::filesystem::path ini_path = path_in / "altsound.ini";
 	std::ofstream file_out(ini_path);
 
 	if (file_out.is_open()) {
@@ -721,7 +721,7 @@ bool AltsoundIniProcessor::create_altsound_ini(const string& path_in)
 		file_out.close();
 	}
 	else {
-		ALT_ERROR(1, "Unable to open file: %s", ini_path.c_str());
+		ALT_ERROR(1, "Unable to open file: %s", ini_path.string().c_str());
 
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundIniProcessor::create_altsound_ini()");

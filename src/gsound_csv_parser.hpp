@@ -33,7 +33,7 @@ class GSoundCsvParser {
 public: // methods
 
 	// Standard constructor
-	explicit GSoundCsvParser(const string& path_in);
+	explicit GSoundCsvParser(const std::filesystem::path& path_in);
 
 	bool parse(std::vector<GSoundSampleInfo>& samples_out);
 
@@ -51,8 +51,8 @@ private: // functions
 
 private: // data
 
-	string altsound_path;
-	string filename;
+	std::filesystem::path altsound_path;
+	std::filesystem::path filename;
 };
 
 #endif // GSOUND_CSV_PARSER_HPP

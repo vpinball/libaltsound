@@ -43,13 +43,11 @@ extern bool rec_snd_cmds;
 // ---------------------------------------------------------------------------
 
 AltsoundProcessorBase::AltsoundProcessorBase(const std::string& _game_name,
-	                                         const std::string& _vpm_path)
+	                                         const std::filesystem::path& _vpm_path)
 : game_name(_game_name),
   vpm_path(_vpm_path),
   skip_count(0)
 {
-	if (!vpm_path.empty() && vpm_path.back() != '/')
-		vpm_path += '/';
 }
 
 AltsoundProcessorBase::~AltsoundProcessorBase()
@@ -123,26 +121,26 @@ bool AltsoundProcessorBase::startLogging(const std::string& gameName) {
 		return false;
 	}
 
-	std::string recording_fname = vpm_path + "altsound/cmdlog.txt";
+	const std::filesystem::path recording_fname = vpm_path / "altsound" / "cmdlog.txt";
 	logFile.open(recording_fname);
 	if (!logFile.is_open()) {
-		ALT_ERROR(1, "Failed to open log file: %s", recording_fname.c_str());
+		ALT_ERROR(1, "Failed to open log file: %s", recording_fname.string().c_str());
 		ALT_DEBUG(0, "END startLogging()");
 		return false;
 	}
 
-	ALT_INFO(1, "Creating sound command log: %s", recording_fname.c_str());
+	ALT_INFO(1, "Creating sound command log: %s", recording_fname.string().c_str());
 
-	std::string game_altsound_path = vpm_path + "altsound/" + gameName + '/';
+	const std::filesystem::path game_altsound_path = vpm_path / "altsound" / gameName;
 
 	// Check if game_altsound_path is valid
 	if (!dir_exists(game_altsound_path)) {
-		ALT_ERROR(1, "Altsound path does not exist: %s", game_altsound_path.c_str());
+		ALT_ERROR(1, "Altsound path does not exist: %s", game_altsound_path.string().c_str());
 		ALT_DEBUG(0, "END startLogging()");
 		return false;
 	}
 
-	logFile << "altsound_path: " << game_altsound_path << std::endl;
+	logFile << "altsound_path: " << game_altsound_path.generic_string() << std::endl;
 	logFile << "hardware_gen: 0x" << 0 << std::endl;
 
 	lastCmdTime = std::chrono::high_resolution_clock::now();

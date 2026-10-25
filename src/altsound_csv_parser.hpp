@@ -33,7 +33,7 @@ class AltsoundCsvParser {
 public: // methods
 
 	// Standard constructor
-	explicit AltsoundCsvParser(const string& altsound_path_in);
+	explicit AltsoundCsvParser(const std::filesystem::path& altsound_path_in);
 
 	bool parse(std::vector<AltsoundSampleInfo>& samples_out);
 
@@ -51,8 +51,8 @@ private: // functions
 
 private: // data
 
-	string altsound_path;
-	string filename;
+	std::filesystem::path altsound_path;
+	std::filesystem::path filename;
 };
 
 #endif // ALTSOUND_CSV_PARSER_HPP

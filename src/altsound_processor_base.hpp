@@ -42,7 +42,7 @@ public:
 	AltsoundProcessorBase(AltsoundProcessorBase&) = delete;
 
 	// Standard constructor
-	AltsoundProcessorBase(const string& game_name, const string& vpm_path);
+	AltsoundProcessorBase(const string& game_name, const std::filesystem::path& vpm_path);
 
 	// Destructor
 	virtual ~AltsoundProcessorBase();
@@ -116,7 +116,9 @@ protected: // functions
 	const string& getGameName();
 
 	// Return path to VPinMAME
-	const string& getVpmPath();
+	const std::filesystem::path& getVpmPath();
+
+	std::filesystem::path getAltsoundPath() const;
 
 	// Initialize log file
 	bool startLogging(const string& gameName);
@@ -124,7 +126,7 @@ protected: // functions
 protected: // data
 
 	string game_name;
-	string vpm_path;
+	std::filesystem::path vpm_path;
 
 private: // functions
 
@@ -147,8 +149,14 @@ inline const string& AltsoundProcessorBase::getGameName() {
 
 // ----------------------------------------------------------------------------
 
-inline const string& AltsoundProcessorBase::getVpmPath() {
+inline const std::filesystem::path& AltsoundProcessorBase::getVpmPath() {
 	return vpm_path;
+}
+
+// ----------------------------------------------------------------------------
+
+inline std::filesystem::path AltsoundProcessorBase::getAltsoundPath() const {
+	return vpm_path / "altsound" / game_name;
 }
 
 // ----------------------------------------------------------------------------

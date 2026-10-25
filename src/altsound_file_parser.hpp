@@ -21,7 +21,7 @@ class AltsoundFileParser {
 public:
 
 	// Standard constructor
-	explicit AltsoundFileParser(const string& altsound_path_in);
+	explicit AltsoundFileParser(const std::filesystem::path& altsound_path_in);
 
 	bool parse(std::vector<AltsoundSampleInfo>& samples_out);
 
@@ -32,10 +32,10 @@ protected:
 
 private: // functions
 
-	float parseFileValue(const string& filePath);
+	float parseFileValue(const std::filesystem::path& file_path, float default_value);
 
 private: // data
-	string altsound_path;
+	std::filesystem::path altsound_path;
 };
 
 #endif //ALTSOUND_FILE_PARSER_HPP

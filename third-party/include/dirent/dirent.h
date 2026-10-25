@@ -27,19 +27,20 @@
 #define S_ISREG(x) ((x) & _S_IFREG)
 #endif
 
-/* Structure to keep track of the current directory status */
-typedef struct my_dir {
-    HANDLE          handle;
-    WIN32_FIND_DATA findFileData;
-    BOOLEAN         firstTime;
-    char            pathName[MAX_PATH];
-} DIR;
-
 /* Standard directory name entry returned by readdir() */
 struct dirent {
   unsigned int d_namlen;
   char d_name[MAX_PATH];
 };
+
+/* Structure to keep track of the current directory status, one per opendir() */
+typedef struct my_dir {
+    HANDLE           handle;
+    WIN32_FIND_DATAA findFileData;
+    BOOLEAN          firstTime;
+    char             pattern[MAX_PATH];
+    struct dirent    entry;
+} DIR;
 
 /* function prototypes */
 int		        closedir(DIR *dirp);

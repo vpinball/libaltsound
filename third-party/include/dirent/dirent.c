@@ -8,86 +8,104 @@
 
 #include "dirent.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #ifdef _WIN32
 
-/** open the current directory and return a structure
- *  to be used in subsequent readdir() and closedir()
- *  calls.
+/** open a directory and return a structure to be used in
+ *  subsequent readdir() and closedir() calls. Each call gets its
+ *  own structure, so listings can be nested, and the current
+ *  directory is left alone.
  *
- *  returns NULL if one error.
+ *  returns NULL on error.
  */
 DIR * opendir(const char *dirname) {
+    DIR *dir;
+    size_t length;
 
-    static DIR dir;
+    if (dirname == NULL || *dirname == '\0')
+        return NULL;
 
-    /* Stash the directory name */
-    strcpy(dir.pathName,dirname);
+    /* the search pattern is the directory followed by "\*" */
+    length = strlen(dirname);
+    if (length + 3 > MAX_PATH)
+        return NULL;
 
-    /* set the handle to invalid and set the firstTime flag */
-    dir.handle    = INVALID_HANDLE_VALUE;
-    dir.firstTime = TRUE;
+    dir = (DIR *)calloc(1, sizeof(DIR));
+    if (dir == NULL)
+        return NULL;
 
-    if (strcmp(dirname, ".") == 0) {
-        return &dir;
+    memcpy(dir->pattern, dirname, length);
+    if (dirname[length - 1] != '/' && dirname[length - 1] != '\\')
+        dir->pattern[length++] = '\\';
+    dir->pattern[length++] = '*';
+    dir->pattern[length] = '\0';
+
+    /* fail like POSIX opendir() when the directory doesn't exist */
+    dir->handle = FindFirstFileA(dir->pattern, &dir->findFileData);
+    if (INVALID_HANDLE_VALUE == dir->handle)
+    {
+        free(dir);
+        return NULL;
     }
+    dir->firstTime = TRUE;
 
-    /* Change the current directory to the one requested */
-    return (SetCurrentDirectory(dir.pathName) != 0) ? &dir : NULL;
+    return dir;
 }
 
-/** Close the current directory - return 0 if success */
+/** Close the directory and free its structure - return 0 if success */
 int	closedir(DIR *dirp) {
-    /* reset ourselves to the first file in the directory
-     *
-     * We just close the current handle and reset for the
-     * next readdir call
-     */
     int result = 1;
 
-    if (dirp->handle != INVALID_HANDLE_VALUE)
-    {
-        result = FindClose(dirp->handle);
-        dirp->handle = INVALID_HANDLE_VALUE;
-    }
+    if (dirp == NULL)
+        return -1;
 
-    return (result == 0) ? 1 : 0;
+    if (dirp->handle != INVALID_HANDLE_VALUE)
+        result = FindClose(dirp->handle);
+
+    free(dirp);
+
+    return (result == 0) ? -1 : 0;
 }
 
 /** get the next entry in the directory */
 struct dirent *	readdir(DIR *dirp) {
-    static struct dirent d;
+    if (dirp == NULL)
+        return NULL;
 
     if (TRUE == dirp->firstTime)
     {
-        /** Get the first entry in the directory */
-        dirp->handle = FindFirstFile("*.*", &dirp->findFileData);
+        /** opendir() already read the first entry */
         dirp->firstTime = FALSE;
         if (INVALID_HANDLE_VALUE == dirp->handle)
-        {
             return NULL;
-        }
     }
     else
     {
-        int result = FindNextFile(dirp->handle, &dirp->findFileData);
-        if (0 == result )
-        {
+        if (INVALID_HANDLE_VALUE == dirp->handle || 0 == FindNextFileA(dirp->handle, &dirp->findFileData))
             return NULL;
-        }
     }
+
     /* we have a valid FIND_FILE_DATA, copy the filename */
-    memset(&d,'\0', sizeof(struct dirent));
+    memset(&dirp->entry, '\0', sizeof(struct dirent));
 
-    strcpy(d.d_name,dirp->findFileData.cFileName);
-    d.d_namlen = (unsigned int)strlen(d.d_name);
+    strncpy(dirp->entry.d_name, dirp->findFileData.cFileName, MAX_PATH - 1);
+    dirp->entry.d_namlen = (unsigned int)strlen(dirp->entry.d_name);
 
-    return &d;
+    return &dirp->entry;
 }
 
-/** reopen the current directory */
+/** reopen the directory */
 void rewinddir(DIR *dirp) {
-     closedir(dirp);
-     dirp->firstTime = TRUE;
+    if (dirp == NULL)
+        return;
+
+    if (dirp->handle != INVALID_HANDLE_VALUE)
+        FindClose(dirp->handle);
+
+    dirp->handle = FindFirstFileA(dirp->pattern, &dirp->findFileData);
+    dirp->firstTime = TRUE;
 }
 
 #endif

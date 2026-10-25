@@ -25,6 +25,7 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <algorithm>
+#include <filesystem>
 
 using std::string;
 
@@ -193,17 +194,11 @@ inline void AltsoundLogger::setLogPath(const string& logPath)
 	if (logPath.empty())
 		return;
 
-	string full_path = logPath;
-	std::replace(full_path.begin(), full_path.end(), '\\', '/');
+	const std::filesystem::path full_path = std::filesystem::path(logPath) / "altsound.log";
 
-	if (full_path.back() != '/')
-		full_path += '/';
+	out.open(full_path);
 
-	full_path += "altsound.log";
-
-	out.open(full_path.c_str());
-
-	none(0, "path set: %s", full_path.c_str());
+	none(0, "path set: %s", full_path.string().c_str());
 }
 
 inline void AltsoundLogger::setLogLevel(Level level)

@@ -42,7 +42,7 @@ public:
 	GSoundProcessor(GSoundProcessor&) = delete;
 
 	// Standard constructor
-	GSoundProcessor(const string& game_name, const string& vpm_path);
+	GSoundProcessor(const string& game_name, const std::filesystem::path& vpm_path);
 
 	// Destructor
 	~GSoundProcessor();

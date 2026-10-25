@@ -18,10 +18,10 @@ extern AltsoundLogger alog;
 // CTOR/DTOR
 // ----------------------------------------------------------------------------
 
-AltsoundCsvParser::AltsoundCsvParser(const string& altsound_path_in)
+AltsoundCsvParser::AltsoundCsvParser(const std::filesystem::path& altsound_path_in)
 : altsound_path(altsound_path_in)
 {
-	filename = altsound_path + "altsound.csv";
+	filename = altsound_path / "altsound.csv";
 }
 
 // ----------------------------------------------------------------------------
@@ -33,7 +33,7 @@ bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 
 	std::ifstream file(filename);
 	if (!file.is_open()) {
-		ALT_ERROR(0, "Unable to open file: %s", filename.c_str());
+		ALT_ERROR(0, "Unable to open file: %s", filename.string().c_str());
 
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltsoundCsvParser::parse()");
@@ -167,11 +167,8 @@ bool AltsoundCsvParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 					break;
 				}
 
-				string full_path = altsound_path + field;
-
-				// Normalize to forward slashes
-				std::replace(full_path.begin(), full_path.end(), '\\', '/');
-				entry.fname = full_path;
+				std::replace(field.begin(), field.end(), '\\', '/');
+				entry.fname = (altsound_path / field).generic_string();
 			}
 			else {
 				ALT_ERROR(1, "Failed to parse FNAME");

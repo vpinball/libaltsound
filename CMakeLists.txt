@@ -95,13 +95,6 @@ set(ALTSOUND_SOURCES
    src/miniaudio_bass_compat.hpp
 )
 
-if(PLATFORM STREQUAL "win" OR PLATFORM STREQUAL "win-mingw")
-   list(APPEND ALTSOUND_SOURCES
-      third-party/include/dirent/dirent.c
-      third-party/include/dirent/dirent.h
-   )
-endif()
-
 set(ALTSOUND_INCLUDE_DIRS
    src
    third-party/include

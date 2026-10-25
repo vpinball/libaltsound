@@ -45,7 +45,7 @@ public:
 	AltsoundIniProcessor(AltsoundIniProcessor&) = delete;
 
 	// Parse the altsound ini file
-	bool parse_altsound_ini(const string& path_in);
+	bool parse_altsound_ini(const std::filesystem::path& path_in);
 
 	// Return parsed flag indicating whether to enable sound command recording
 	bool recordSoundCmds() const;
@@ -71,10 +71,10 @@ private: // functions
 	bool parseDuckingProfile(const IniSection& ducking_section, ProfileMap& profiles);
 
 	// determine altsound format from installed data
-	string get_altsound_format(const string& path_in);
+	string get_altsound_format(const std::filesystem::path& path_in);
 
 	// Create altsound.ini file
-	bool create_altsound_ini(const string& path_in);
+	bool create_altsound_ini(const std::filesystem::path& path_in);
 
 	// Helper function to trim whitespace from strings and conver to lowercase
 	string normalizeString(string str);

@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -218,23 +219,19 @@ bool parseCmdFile(InitData& init_data)
 		if (!std::getline(inFile, line))
 			throw std::runtime_error("altsound_path value could not be determined");
 
-		string altsoundPath = extractValue(line);
-	 	std::replace(altsoundPath.begin(), altsoundPath.end(), '\\', '/');
-		if (altsoundPath.back() != '/')
-			altsoundPath += '/';
+		string pathValue = extractValue(line);
+		std::replace(pathValue.begin(), pathValue.end(), '\\', '/');
 
-		size_t altsoundPos = altsoundPath.find("/altsound/");
-		if (altsoundPos == string::npos)
+		std::filesystem::path altsoundPath(pathValue);
+		if (!altsoundPath.has_filename())
+			altsoundPath = altsoundPath.parent_path();
+
+		if (altsoundPath.parent_path().filename() != "altsound" || altsoundPath.filename().empty())
 			throw std::runtime_error("altsound_path value could not be determined");
 
-		init_data.altsound_path = altsoundPath;
-		init_data.vpm_path = altsoundPath.substr(0, altsoundPos + 1);
-
-		size_t nextSlashPos = altsoundPath.find('/', altsoundPos + 10);
-		if (nextSlashPos == string::npos)
-			throw std::runtime_error("game name could not be determined");
-
-		init_data.game_name = altsoundPath.substr(altsoundPos + 10, nextSlashPos - (altsoundPos + 10));
+		init_data.altsound_path = altsoundPath.generic_string();
+		init_data.vpm_path = altsoundPath.parent_path().parent_path().generic_string();
+		init_data.game_name = altsoundPath.filename().string();
 
 		// Process hardware_gen
 		if (!std::getline(inFile, line))

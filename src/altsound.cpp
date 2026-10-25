@@ -403,20 +403,14 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	// initialize channel_stream storage
 	std::fill(channel_stream.begin(), channel_stream.end(), nullptr);
 
-	string szPinmamePath = pinmamePath;
-
-	std::replace(szPinmamePath.begin(), szPinmamePath.end(), '\\', '/');
-
-	if (szPinmamePath.back() != '/')
-		szPinmamePath += '/';
-
-	const string szAltSoundPath = szPinmamePath + "altsound/" + gameName + '/';
+	const std::filesystem::path pinmame_path(pinmamePath);
+	const std::filesystem::path altsound_path = pinmame_path / "altsound" / gameName;
 
 	// parse .ini file
 	AltsoundIniProcessor ini_proc;
-	if (!ini_proc.parse_altsound_ini(szAltSoundPath)) {
+	if (!ini_proc.parse_altsound_ini(altsound_path)) {
 		// Error message and return
-		ALT_ERROR(0, "Failed to parse_altsound_ini(%s)", szAltSoundPath.c_str());
+		ALT_ERROR(0, "Failed to parse_altsound_ini(%s)", altsound_path.string().c_str());
 		ALT_OUTDENT;
 		ALT_DEBUG(0, "END AltSoundInit()");
 		return false;
@@ -427,10 +421,10 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	if (format == "g-sound") {
 		// G-Sound only supports new CSV format. No need to specify format
 		// in the constructor
-		g_pProcessor = new GSoundProcessor(gameName, szPinmamePath);
+		g_pProcessor = new GSoundProcessor(gameName, pinmame_path);
 	}
 	else if (format == "altsound" || format == "legacy") {
-		g_pProcessor = new AltsoundProcessor(gameName, szPinmamePath, format);
+		g_pProcessor = new AltsoundProcessor(gameName, pinmame_path, format);
 	}
 	else {
 		ALT_ERROR(0, "Unknown AltSound format: %s", format.c_str());

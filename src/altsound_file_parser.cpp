@@ -163,14 +163,14 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 				string PATH2 = PATH + entry->d_name;
 
 				// Check for overriding gain value
-				string PATHG = PATH2 + "gain.txt";
+				string PATHG = PATH2 + '/' + "gain.txt";
 				float parsedGain = parseFileValue(PATHG);
 				if (parsedGain != -1.0f) {
 					gain = parsedGain;
 				}
 
 				// check for overriding ducking value
-				PATHG = PATH2 + "ducking.txt";
+				PATHG = PATH2 + '/' + "ducking.txt";
 				float parsedDucking = parseFileValue(PATHG);
 				if (parsedDucking != -1.0f) {
 					ducking = parsedDucking;
@@ -191,7 +191,7 @@ bool AltsoundFileParser::parse(std::vector<AltsoundSampleInfo>& samples_out)
 
 						AltsoundSampleInfo sample;
 
-						sample.fname = PATH2 + entry2->d_name;
+						sample.fname = PATH2 + '/' + entry2->d_name;
 
 						memcpy(id, ptr + 1, 6);
 						sample.id = std::stoul(trim(id), nullptr);

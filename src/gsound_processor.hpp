@@ -84,8 +84,9 @@ private: // functions
 	// BASS SYNCPROC callback whan a stream ends
 	static void ALTSOUNDCALLBACK common_callback(unsigned int handle, unsigned int channel, unsigned int data, void* user);
 
-	// adjust volume of active streams to accommodate current ducking impacts
-	static bool adjustStreamVolumes();
+	// adjust volume of active streams to accommodate current ducking impacts.
+	// Volumes that go up are reached over fade_ms when fade_ms > 0
+	static bool adjustStreamVolumes(const unsigned int fade_ms = 0);
 
 	// determine lowest ducking volume impacts on stream_type
 	static float findLowestDuckVolume(AltsoundSampleType stream_type);

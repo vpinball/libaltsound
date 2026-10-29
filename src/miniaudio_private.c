@@ -121,6 +121,16 @@ void altsound_ma_sound_set_volume(ma_sound* pSound, float volume)
     ma_sound_set_volume(pSound, volume);
 }
 
+void altsound_ma_sound_set_fade_in_milliseconds(ma_sound* pSound, float volumeBeg, float volumeEnd, ma_uint64 milliseconds)
+{
+    ma_sound_set_fade_in_milliseconds(pSound, volumeBeg, volumeEnd, milliseconds);
+}
+
+float altsound_ma_sound_get_current_fade_volume(const ma_sound* pSound)
+{
+    return ma_sound_get_current_fade_volume(pSound);
+}
+
 void altsound_ma_sound_set_looping(ma_sound* pSound, ma_bool32 loop)
 {
     ma_sound_set_looping(pSound, loop);

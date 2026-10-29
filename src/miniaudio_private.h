@@ -26,6 +26,8 @@ void altsound_ma_sound_uninit(ma_sound* pSound);
 ma_result altsound_ma_sound_start(ma_sound* pSound);
 ma_result altsound_ma_sound_stop(ma_sound* pSound);
 void altsound_ma_sound_set_volume(ma_sound* pSound, float volume);
+void altsound_ma_sound_set_fade_in_milliseconds(ma_sound* pSound, float volumeBeg, float volumeEnd, ma_uint64 milliseconds);
+float altsound_ma_sound_get_current_fade_volume(const ma_sound* pSound);
 void altsound_ma_sound_set_looping(ma_sound* pSound, ma_bool32 loop);
 ma_result altsound_ma_sound_seek_to_pcm_frame(ma_sound* pSound, ma_uint64 frameIndex);
 void altsound_ma_sound_set_end_callback(ma_sound* pSound, ma_sound_end_proc callback, void* pUserData);

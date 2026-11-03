@@ -289,21 +289,6 @@ void altsound_preprocess_commands(int cmd)
 
 			break;
 		}
-
-		case ALTSOUND_HARDWARE_GEN_BY17: // PinMAME logs one byte per sound command
-		case ALTSOUND_HARDWARE_GEN_BY35:
-		default: { // and so on every generation without a case above
-			ALT_DEBUG(0, "Hardware Generation: BY17, BY35 or other (one byte per command)");
-
-			// A pack made with the byte pairs (it holds an id above 0xFF) keeps them
-			if (!(g_pProcessor && g_pProcessor->usesPairedIds())) {
-				g_cmdData.stored_command = 0;
-				g_cmdData.cmd_counter = 0;
-				g_cmdData.cmd_filter = 0;
-			}
-
-			break;
-		}
 	}
 
 	ALT_OUTDENT;

@@ -26,6 +26,10 @@ BehaviorInfo overlay_behavior;
 AltsoundLogger alog;
 
 AltsoundProcessorBase* g_pProcessor = NULL;
+
+// G-Sound packs are keyed by commands assembled two bytes at a time, on every
+// generation, so they keep the pairing the single byte machines opt out of
+static bool g_gsoundFormat = false;
 ALTSOUND_HARDWARE_GEN g_hardwareGen = ALTSOUND_HARDWARE_GEN_NONE;
 CmdData g_cmdData;
 
@@ -295,9 +299,12 @@ void altsound_preprocess_commands(int cmd)
 		default: { // and so on every generation without a case above
 			ALT_DEBUG(0, "Hardware Generation: BY17, BY35 or other (one byte per command)");
 
-			g_cmdData.stored_command = 0;
-			g_cmdData.cmd_counter = 0;
-			g_cmdData.cmd_filter = 0;
+			// G-Sound packs were made with the byte pairs, so they are left alone
+			if (!g_gsoundFormat) {
+				g_cmdData.stored_command = 0;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 0;
+			}
 
 			break;
 		}
@@ -417,6 +424,8 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	}
 
 	string format = ini_proc.getAltsoundFormat();
+
+	g_gsoundFormat = (format == "g-sound");
 
 	if (format == "g-sound") {
 		// G-Sound only supports new CSV format. No need to specify format

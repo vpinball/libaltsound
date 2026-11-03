@@ -59,6 +59,9 @@ public:
 	// Return parsed skip count value
 	unsigned int getSkipCount() const;
 
+	// Return parsed loop points flag
+	bool usingLoopPoints() const;
+
 private: // functions
 
 	// helper function to parse behavior variable values
@@ -93,6 +96,7 @@ private: // data
 	bool rom_volume_control = true;
 	string altsound_format;
 	unsigned int skip_count = 0;
+	bool use_loop_points = false;
 };
 
 // ----------------------------------------------------------------------------
@@ -120,6 +124,12 @@ inline bool AltsoundIniProcessor::usingRomVolumeControl() const {
 
 inline unsigned int AltsoundIniProcessor::getSkipCount() const {
 	return skip_count;
+}
+
+// ----------------------------------------------------------------------------
+
+inline bool AltsoundIniProcessor::usingLoopPoints() const {
+	return use_loop_points;
 }
 
 #endif // ALTSOUND_INI_PROCESSOR_H

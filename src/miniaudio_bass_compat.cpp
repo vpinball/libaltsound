@@ -47,7 +47,7 @@ static void MiniAudio_StreamEndCallback(void* pUserData, ma_sound* pSound)
 	}
 }
 
-unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsigned long long length, bool loop)
+unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsigned long long length, bool loop, bool use_loop_points)
 {
 	if (file.empty()) {
 		MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
@@ -74,6 +74,23 @@ unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsig
 	}
 
 	altsound_ma_sound_set_looping(sound, loop ? MA_TRUE : MA_FALSE);
+
+	// A looping sample with loop points plays from the start once, then
+	// repeats only the loop (intro + loop music). Without loop points, the
+	// whole file is looped.
+	if (loop && use_loop_points) {
+		ma_uint64 loop_beg, loop_end;
+		ma_uint32 file_rate;
+		if (altsound_read_loop_points(file.c_str(), &loop_beg, &loop_end, &file_rate)) {
+			// loop points are in frames at the file's rate, the decoder outputs at the engine's
+			const ma_uint32 out_rate = decoder->outputSampleRate;
+			if (file_rate != out_rate) {
+				loop_beg = loop_beg * out_rate / file_rate;
+				loop_end = loop_end * out_rate / file_rate;
+			}
+			altsound_ma_decoder_set_loop_point(decoder, loop_beg, loop_end);
+		}
+	}
 
 	unsigned int hstream = g_nextStreamId++;
 

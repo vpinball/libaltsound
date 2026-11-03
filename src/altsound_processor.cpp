@@ -322,6 +322,8 @@ bool AltsoundProcessor::loadSamples()
 
 	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltsoundProcessor::loadSamples");
+	detectPairedIds(samples);
+
 	return true;
 }
 

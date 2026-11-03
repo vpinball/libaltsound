@@ -75,12 +75,32 @@ public:
 	void setSkipCount(const unsigned int skip_count_in);
 	unsigned int getSkipCount() const;
 
+	// whether the pack holds an id above 0xFF, which a machine sending one byte
+	// per sound command cannot produce: such a pack was made with the byte pairs
+	bool usesPairedIds() const { return paired_ids; }
+
 	// whether the pack has a sample for this command
 	bool hasSample(const unsigned int cmd_combined_in) { return getSample(cmd_combined_in) != ~0u; }
 
 public: // data
 
+protected:
+	bool paired_ids = false;
+public:
+
 protected: // functions
+
+	// remember whether the loaded samples hold an id above 0xFF
+	template <typename T>
+	void detectPairedIds(const std::vector<T>& samples_in) {
+		paired_ids = false;
+		for (const auto& s : samples_in) {
+			if (s.id > 0xFF) {
+				paired_ids = true;
+				break;
+			}
+		}
+	}
 
 	// populate sample data
 	virtual bool loadSamples() = 0;

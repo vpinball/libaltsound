@@ -408,6 +408,8 @@ bool GSoundProcessor::loadSamples()
 
 	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::init()");
+	detectPairedIds(samples);
+
 	return true;
 }
 

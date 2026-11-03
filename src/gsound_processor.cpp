@@ -397,7 +397,12 @@ bool GSoundProcessor::loadSamples()
 
 	GSoundCsvParser csv_parser(altsound_path);
 
-	if (!csv_parser.parse(samples)) {
+	const bool parsed = csv_parser.parse(samples);
+
+	// a row that fails to parse stops the read, but the ids read before it count
+	detectPairedIds(samples);
+
+	if (!parsed) {
 		ALT_ERROR(1, "FAILED GSoundCsvParser::parse()");
 
 		ALT_OUTDENT;
@@ -408,8 +413,6 @@ bool GSoundProcessor::loadSamples()
 
 	ALT_OUTDENT;
 	ALT_DEBUG(0, "END GSoundProcessor::init()");
-	detectPairedIds(samples);
-
 	return true;
 }
 

@@ -64,6 +64,9 @@ typedef void (*AltSoundAudioCallback)(const float* samples, size_t frameCount, u
 ALTSOUNDAPI void AltSoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
 ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
                               uint32_t sampleRate = 44100, uint32_t channels = 2, uint32_t bufferSizeFrames = 256);
+// Reads "new_sound_commands" of the pack's altsound.ini without starting AltSound, for hosts that have to
+// configure the emulator before it runs. false (old command stream) if the key or the ini is missing
+ALTSOUNDAPI bool AltSoundGetNewSoundCommands(const string& pinmamePath, const string& gameName);
 ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
 ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* userData);
 ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation);

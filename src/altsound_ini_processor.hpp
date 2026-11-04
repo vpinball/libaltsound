@@ -50,6 +50,9 @@ public:
 	// Return parsed flag indicating whether to enable sound command recording
 	bool recordSoundCmds() const;
 
+	// Return parsed flag indicating whether the pack was made for the real sound commands, one byte each
+	bool newSoundCommands() const;
+
 	// Return parsed AltsoundFormat type
 	const string& getAltsoundFormat() const;
 
@@ -90,6 +93,7 @@ private: // functions
 private: // data
 
 	bool record_sound_commands = false;
+	bool new_sound_commands = false;
 	bool rom_volume_control = true;
 	string altsound_format;
 	unsigned int skip_count = 0;
@@ -101,6 +105,12 @@ private: // data
 
 inline bool AltsoundIniProcessor::recordSoundCmds() const {
 	return record_sound_commands;
+}
+
+// ----------------------------------------------------------------------------
+
+inline bool AltsoundIniProcessor::newSoundCommands() const {
+	return new_sound_commands;
 }
 
 // ----------------------------------------------------------------------------

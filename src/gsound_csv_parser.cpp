@@ -65,6 +65,10 @@ bool GSoundCsvParser::parse(std::vector<GSoundSampleInfo>& samples_out)
 			if (line.empty())
 				continue;
 
+			// A line starting with '#' is a comment, so that a sample can be turned off without deleting its line
+			if (line.front() == '#')
+				continue;
+
 			// Some Altsounds use quotes around fields.  These need to be removed.
 			line.erase(std::remove(line.begin(), line.end(), '\"'), line.end());
 

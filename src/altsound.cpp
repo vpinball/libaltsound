@@ -175,7 +175,8 @@ void altsound_preprocess_commands(int cmd)
 			g_cmdData.cmd_filter = 0;
 			if ((g_cmdData.cmd_buffer[2] == 0x79) && (g_cmdData.cmd_buffer[1] == (g_cmdData.cmd_buffer[0] ^ 0xFF))) { // change volume op (following first byte = volume, second = ~volume, if these don't match: ignore)
 				if (g_pProcessor->romControlsVol()) {
-					g_pProcessor->setGlobalVol(std::min((float)g_cmdData.cmd_buffer[1] / 127.f, 1.0f));
+					// the pre-DCS sound ROM volume runs 0..31, like the Whitestar one below
+					g_pProcessor->setGlobalVol(std::min((float)g_cmdData.cmd_buffer[1] / 31.f, 1.0f));
 					ALT_INFO(0, "Change volume %.02f", g_pProcessor->getGlobalVol());
 				}
 

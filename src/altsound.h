@@ -52,8 +52,8 @@ typedef enum : uint64_t {
 
 typedef enum {
 	ALTSOUND_LOG_LEVEL_NONE = 0,
-	ALTSOUND_LOG_LEVEL_INFO,
 	ALTSOUND_LOG_LEVEL_ERROR,
+	ALTSOUND_LOG_LEVEL_INFO,
 	ALTSOUND_LOG_LEVEL_WARNING,
 	ALTSOUND_LOG_LEVEL_DEBUG,
 	ALTSOUND_LOG_LEVEL_UNDEFINED,
@@ -67,6 +67,9 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
 ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* userData);
 ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation);
+// TODO: Take the command's source (PinMAME's SND_CMD_DRIVER/DATA/LEGACY, see its snd_cmd.h) and whether the board
+// sends legacy data writes (SNDBRD_DATALOG_LEGACY), e.g. in a new entry point next to this one (which then means
+// SND_CMD_DATA), so the commands can be taken as in PinMAME's AltSound, see altsound_preprocess_commands
 ALTSOUNDAPI bool AltSoundProcessBoardCommand(const unsigned int board, const unsigned int cmd, int attenuation);
 ALTSOUNDAPI void AltSoundPause(bool pause);
 ALTSOUNDAPI void AltSoundShutdown();

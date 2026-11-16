@@ -46,8 +46,8 @@ class AltsoundLogger
 public:
 	enum Level {
 		None = 0,
-		Info,
 		Error,
+		Info,
 		Warning,
 		Debug,
 		UNDEFINED

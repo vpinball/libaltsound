@@ -28,6 +28,7 @@ AltsoundLogger alog;
 AltsoundProcessorBase* g_pProcessor = NULL;
 ALTSOUND_HARDWARE_GEN g_hardwareGen = ALTSOUND_HARDWARE_GEN_NONE;
 CmdData g_cmdData;
+static bool g_newSoundCommands = false; // "new_sound_commands" of the pack's altsound.ini, see altsound_preprocess_commands
 
 std::unordered_map<unsigned int, _internal_stream_data> g_streamMap;
 std::mutex g_streamMapMutex;
@@ -81,7 +82,7 @@ void altsound_preprocess_commands(int cmd)
 	ALT_DEBUG(0, "BEGIN altsound_preprocess_commands()");
 	ALT_INDENT;
 
-	ALT_DEBUG(0, "MAME_GEN: 0x%013x", (uint64_t)g_hardwareGen);
+	ALT_DEBUG(0, "MAME_GEN: 0x%013llx", (unsigned long long)g_hardwareGen);
 
 	switch (g_hardwareGen) {
 		case ALTSOUND_HARDWARE_GEN_WPCDCS:
@@ -290,14 +291,31 @@ void altsound_preprocess_commands(int cmd)
 			break;
 		}
 
-		case ALTSOUND_HARDWARE_GEN_BY17: // PinMAME logs one byte per sound command
+		// Bally MPU-17/MPU-35 and every generation without a case above: one byte per sound command for the packs
+		// made for the real sound commands as PinMAME 3.7 and later logs them (new_sound_commands = 1), the bytes
+		// paired two by two for the older packs, as before. Until the TODO below is done, packs for the machines
+		// whose commands only the driver logs (e.g. Capcom, Pinball 2000, Mr. Game, Hankin, Atari, Zira,
+		// Spinball/Inder, Zaccaria 1311) need new_sound_commands = 1.
+		// TODO: Take the commands as PinMAME's own AltSound does (alt_sound_handle, preprocess_commands in its
+		// snd_alt.cpp), once libpinmame passes each command's source on (TODO in its libpinmame.cpp) and the API
+		// takes it (TODO at AltSoundProcessBoardCommand in altsound.h):
+		// - a driver's own commands (SND_CMD_DRIVER): one by one for any pack (Capcom, Pinball 2000: 16-bit values)
+		// - data writes logged as in PinMAME 3.6 (SND_CMD_DATA): as now
+		// - boards whose logging changed in 3.7 (SNDBRD_DATALOG_LEGACY): their old data writes (SND_CMD_LEGACY),
+		//   paired, for the old packs, their driver's commands for the others, skipping the other kind
+		case ALTSOUND_HARDWARE_GEN_BY17:
 		case ALTSOUND_HARDWARE_GEN_BY35:
-		default: { // and so on every generation without a case above
-			ALT_DEBUG(0, "Hardware Generation: BY17, BY35 or other (one byte per command)");
+		default: {
+			if (g_newSoundCommands) {
+				ALT_DEBUG(0, "Hardware Generation: BY17, BY35 or other (one byte per command)");
 
-			g_cmdData.stored_command = 0;
-			g_cmdData.cmd_counter = 0;
-			g_cmdData.cmd_filter = 0;
+				g_cmdData.stored_command = 0;
+				g_cmdData.cmd_counter = 0;
+				g_cmdData.cmd_filter = 0;
+			}
+			else {
+				ALT_DEBUG(0, "Hardware Generation: BY17, BY35 or other (bytes paired)");
+			}
 
 			break;
 		}
@@ -316,7 +334,7 @@ void altsound_postprocess_commands(const unsigned int combined_cmd)
 	ALT_DEBUG(0, "BEGIN altsound_postprocess_commands()");
 	ALT_INDENT;
 
-	ALT_DEBUG(0, "MAME_GEN: 0x%013x", (uint64_t)g_hardwareGen);
+	ALT_DEBUG(0, "MAME_GEN: 0x%013llx", (unsigned long long)g_hardwareGen);
 
 	switch (g_hardwareGen) {
 		case ALTSOUND_HARDWARE_GEN_WPCDCS:
@@ -447,6 +465,7 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 	g_pProcessor->romControlsVol(ini_proc.usingRomVolumeControl());
 	g_pProcessor->recordSoundCmds(ini_proc.recordSoundCmds());
 	g_pProcessor->setSkipCount(ini_proc.getSkipCount());
+	g_newSoundCommands = ini_proc.newSoundCommands();
 
 	// perform processor initialization (load samples, etc)
 	g_pProcessor->init();
@@ -473,7 +492,7 @@ ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen)
 
 	g_hardwareGen = hardwareGen;
 
-	ALT_DEBUG(0, "MAME_GEN: 0x%013x", (uint64_t)g_hardwareGen);
+	ALT_DEBUG(0, "MAME_GEN: 0x%013llx", (unsigned long long)g_hardwareGen);
 
 	ALT_OUTDENT;
 	ALT_DEBUG(0, "END AltSoundSetHardwareGen()");
@@ -508,10 +527,16 @@ ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 {
 	ALT_DEBUG(0, "BEGIN AltSoundProcessCommand()");
 
-	float master_vol = g_pProcessor->getMasterVol();
-	while (attenuation++ < 0) {
-		master_vol /= 1.122018454f; // = (10 ^ (1/20)) = 1dB
+	if (!g_pProcessor) {
+		ALT_ERROR(0, "AltSound not initialized. Processing skipped.");
+		return false;
 	}
+
+	ALT_INDENT;
+
+	// master volume from the attenuation in dB (negative values attenuate, positive ones are a gain),
+	// set as is, not relative to the previous one
+	const float master_vol = powf(10.f, (float)attenuation / 20.f);
 	g_pProcessor->setMasterVol(master_vol);
 	ALT_DEBUG(0, "Master Volume (Post Attenuation): %.02f", master_vol);
 
@@ -604,29 +629,34 @@ ALTSOUNDAPI void AltSoundPause(bool pause)
 	ALT_DEBUG(0, "BEGIN alt_sound_pause()");
 	ALT_INDENT;
 
+	// under io_mutex, as the stream end callbacks (miniaudio thread) free streams
+	std::lock_guard<std::mutex> guard(io_mutex);
+
 	if (pause) {
 		ALT_INFO(0, "Pausing stream playback (ALL)");
 
-		// Pause all channels
+		// Pause the channels that play
 		for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
 			if (!channel_stream[i])
 				continue;
 
-			if (MiniAudio_ChannelPause(channel_stream[i]->hstream)) {
-				ALT_INFO(0, "SUCCESS: Paused stream %u", channel_stream[i]->hstream);
+			const unsigned int stream = channel_stream[i]->hstream;
+			if (MiniAudio_ChannelIsActive(stream) == MINIAUDIO_ACTIVE_PLAYING && MiniAudio_ChannelPause(stream)) {
+				ALT_INFO(0, "SUCCESS: Paused stream %u", stream);
 			}
 		}
 	}
 	else {
 		ALT_INFO(0, "Resuming stream playback (ALL)");
 
-		// Resume all channels
+		// Resume the paused channels (only those, not the ones that ended or never started)
 		for (int i = 0; i < ALT_MAX_CHANNELS; ++i) {
 			if (!channel_stream[i])
 				continue;
 
-			if (MiniAudio_ChannelPlay(channel_stream[i]->hstream, false)) {
-				ALT_INFO(0, "SUCCESS: Resumed stream %u", channel_stream[i]->hstream);
+			const unsigned int stream = channel_stream[i]->hstream;
+			if (MiniAudio_ChannelIsActive(stream) == MINIAUDIO_ACTIVE_PAUSED && MiniAudio_ChannelPlay(stream, false)) {
+				ALT_INFO(0, "SUCCESS: Resumed stream %u", stream);
 			}
 		}
 	}

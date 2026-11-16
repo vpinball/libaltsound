@@ -54,7 +54,20 @@ unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsig
 		return MINIAUDIO_NO_STREAM;
 	}
 
-	ma_decoder_config config = altsound_ma_decoder_config_init(ma_format_f32, g_channels, g_sampleRate);
+	// A looping sample with loop points plays from the start once, then
+	// repeats only the loop (intro + loop music). Without loop points, the
+	// whole file is looped.
+	// Such a file is decoded at its own sample rate and left to the engine to
+	// resample: the loop points stay exact frames of the file, and the engine's
+	// resampler runs on through the jump back. A decoder resampling to the
+	// engine's rate would need the points scaled (a rounding error that adds up
+	// at every pass) and starts its resampler again at the loop start, which
+	// leaves a click at each joint
+	ma_uint64 loop_beg = 0, loop_end = 0;
+	ma_uint32 file_rate = 0;
+	const bool has_loop = loop && use_loop_points && altsound_read_loop_points(file.c_str(), &loop_beg, &loop_end, &file_rate);
+
+	ma_decoder_config config = altsound_ma_decoder_config_init(ma_format_f32, g_channels, has_loop ? 0 : g_sampleRate);
 	ma_decoder* decoder = new ma_decoder();
 	ma_result result = altsound_ma_decoder_init_file(file.c_str(), &config, decoder);
 	if (result != MA_SUCCESS) {
@@ -75,22 +88,8 @@ unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsig
 
 	altsound_ma_sound_set_looping(sound, loop ? MA_TRUE : MA_FALSE);
 
-	// A looping sample with loop points plays from the start once, then
-	// repeats only the loop (intro + loop music). Without loop points, the
-	// whole file is looped.
-	if (loop && use_loop_points) {
-		ma_uint64 loop_beg, loop_end;
-		ma_uint32 file_rate;
-		if (altsound_read_loop_points(file.c_str(), &loop_beg, &loop_end, &file_rate)) {
-			// loop points are in frames at the file's rate, the decoder outputs at the engine's
-			const ma_uint32 out_rate = decoder->outputSampleRate;
-			if (file_rate != out_rate) {
-				loop_beg = loop_beg * out_rate / file_rate;
-				loop_end = loop_end * out_rate / file_rate;
-			}
-			altsound_ma_decoder_set_loop_point(decoder, loop_beg, loop_end);
-		}
-	}
+	if (has_loop)
+		altsound_ma_decoder_set_loop_point(decoder, loop_beg, loop_end);
 
 	unsigned int hstream = g_nextStreamId++;
 

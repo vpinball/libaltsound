@@ -66,7 +66,7 @@ inline void MiniAudio_ErrorSetCode(int ma_err)
 	g_last_ma_err = ma_err;
 }
 
-unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsigned long long length, bool loop);
+unsigned int MiniAudio_StreamCreateFile(bool mem, const std::string& file, unsigned long long length, bool loop, bool use_loop_points = false);
 bool MiniAudio_ChannelSetVolume(unsigned int hstream, float value);
 bool MiniAudio_ChannelGetVolume(unsigned int hstream, float& value);
 unsigned int MiniAudio_ChannelSetSync(unsigned int hstream, unsigned int type, void* proc, void* user);

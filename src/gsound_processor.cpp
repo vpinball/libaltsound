@@ -988,9 +988,13 @@ float GSoundProcessor::findLowestDuckVolume(AltsoundSampleType stream_type)
 		return 1.0f;
 	}
 
-	// Search for lowest volume in the map, defaulting to 1.0f if empty
-	const float min_vol = std::accumulate(map->begin(), map->end(), 1.0f,
-		[](float currentMin, const auto& pair) { return std::min(currentMin, pair.second); });
+	// Search for lowest volume in the map, defaulting to 1.0f if empty.
+	// When overlapping ducks stack, multiply them instead
+	const float min_vol = stackDucking()
+		? std::accumulate(map->begin(), map->end(), 1.0f,
+			[](float product, const auto& pair) { return product * std::min(pair.second, 1.0f); })
+		: std::accumulate(map->begin(), map->end(), 1.0f,
+			[](float currentMin, const auto& pair) { return std::min(currentMin, pair.second); });
 
 	ALT_DEBUG(1, "Min ducking value for %s streams: %.02f", toString(stream_type), min_vol);
 

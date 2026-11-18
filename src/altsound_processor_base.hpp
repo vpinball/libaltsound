@@ -72,6 +72,10 @@ public:
 	void setGlobalVol(const float vol_in);
 	static float getGlobalVol();
 
+	// duck stacking flag accessor/mutator
+	static void stackDucking(const bool stack_ducking_in);
+	static bool stackDucking();
+
 	// command skip count accessor/mutator
 	void setSkipCount(const unsigned int skip_count_in);
 	unsigned int getSkipCount() const;
@@ -143,6 +147,7 @@ private: // data
 	static float global_vol;
 	static float master_vol;
 	static std::unordered_map<unsigned int, float> stream_vol; // per stream volume, before the global and master volume
+	static bool stack_ducking;
 	unsigned int skip_count;
 };
 
@@ -194,6 +199,18 @@ inline float AltsoundProcessorBase::getMasterVol() {
 
 inline float AltsoundProcessorBase::getGlobalVol() {
 	return global_vol;
+}
+
+// ----------------------------------------------------------------------------
+
+inline void AltsoundProcessorBase::stackDucking(const bool stack_ducking_in) {
+	stack_ducking = stack_ducking_in;
+}
+
+// ----------------------------------------------------------------------------
+
+inline bool AltsoundProcessorBase::stackDucking() {
+	return stack_ducking;
 }
 
 // ----------------------------------------------------------------------------

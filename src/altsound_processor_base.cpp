@@ -28,6 +28,7 @@ extern ALTSOUND_HARDWARE_GEN g_hardwareGen;
 float AltsoundProcessorBase::global_vol = 1.0f;
 float AltsoundProcessorBase::master_vol = 1.0f;
 std::unordered_map<unsigned int, float> AltsoundProcessorBase::stream_vol;
+bool AltsoundProcessorBase::stack_ducking = false;
 
 // reference to sound command recording status
 extern bool rec_snd_cmds;

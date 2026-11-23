@@ -29,6 +29,8 @@ AltsoundProcessorBase* g_pProcessor = NULL;
 ALTSOUND_HARDWARE_GEN g_hardwareGen = ALTSOUND_HARDWARE_GEN_NONE;
 CmdData g_cmdData;
 static bool g_newSoundCommands = false; // "new_sound_commands" of the pack's altsound.ini, see altsound_preprocess_commands
+static unsigned int g_cmdBoard = 0; // sound board of the command being processed
+static ALTSOUND_CMD_SRC g_cmdSrc = ALTSOUND_CMD_SRC_DATA; // where the command being processed comes from
 
 std::unordered_map<unsigned int, _internal_stream_data> g_streamMap;
 std::mutex g_streamMapMutex;
@@ -292,21 +294,16 @@ void altsound_preprocess_commands(int cmd)
 		}
 
 		// Bally MPU-17/MPU-35 and every generation without a case above: one byte per sound command for the packs
-		// made for the real sound commands as PinMAME 3.7 and later logs them (new_sound_commands = 1), the bytes
-		// paired two by two for the older packs, as before. Until the TODO below is done, packs for the machines
-		// whose commands only the driver logs (e.g. Capcom, Pinball 2000, Mr. Game, Hankin, Atari, Zira,
-		// Spinball/Inder, Zaccaria 1311) need new_sound_commands = 1.
-		// TODO: Take the commands as PinMAME's own AltSound does (alt_sound_handle, preprocess_commands in its
-		// snd_alt.cpp), once libpinmame passes each command's source on (TODO in its libpinmame.cpp) and the API
-		// takes it (TODO at AltSoundProcessBoardCommand in altsound.h):
-		// - a driver's own commands (SND_CMD_DRIVER): one by one for any pack (Capcom, Pinball 2000: 16-bit values)
-		// - data writes logged as in PinMAME 3.6 (SND_CMD_DATA): as now
-		// - boards whose logging changed in 3.7 (SNDBRD_DATALOG_LEGACY): their old data writes (SND_CMD_LEGACY),
-		//   paired, for the old packs, their driver's commands for the others, skipping the other kind
+		// made for the real sound commands as PinMAME 3.7 and later logs them (new_sound_commands = 1), and always
+		// for the commands a driver logs itself (3.6 and before logged only data writes, so no older pack is keyed
+		// on these), as PinMAME's preprocess_commands. The data writes are paired two by two for the older packs,
+		// as before. Only AltSoundProcessBoardCommandSrc knows the source: through AltSoundProcessCommand and
+		// AltSoundProcessBoardCommand, packs for the machines whose commands only the driver logs (e.g. Capcom,
+		// Pinball 2000, Mr. Game, Hankin, Atari, Zira, Spinball/Inder, Zaccaria 1311) need new_sound_commands = 1
 		case ALTSOUND_HARDWARE_GEN_BY17:
 		case ALTSOUND_HARDWARE_GEN_BY35:
 		default: {
-			if (g_newSoundCommands) {
+			if (g_newSoundCommands || g_cmdSrc == ALTSOUND_CMD_SRC_DRIVER) {
 				ALT_DEBUG(0, "Hardware Generation: BY17, BY35 or other (one byte per command)");
 
 				g_cmdData.stored_command = 0;
@@ -521,8 +518,6 @@ ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* 
  * AltSoundProcessCommand
  ******************************************************/
 
-static unsigned int g_cmdBoard = 0; // sound board of the command being processed
-
 ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 {
 	ALT_DEBUG(0, "BEGIN AltSoundProcessCommand()");
@@ -614,9 +609,29 @@ ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation)
 
 ALTSOUNDAPI bool AltSoundProcessBoardCommand(const unsigned int board, const unsigned int cmd, int attenuation)
 {
+	return AltSoundProcessBoardCommandSrc(board, cmd, ALTSOUND_CMD_SRC_DATA, false, attenuation);
+}
+
+/******************************************************
+ * AltSoundProcessBoardCommandSrc
+ ******************************************************/
+
+ALTSOUNDAPI bool AltSoundProcessBoardCommandSrc(const unsigned int board, const unsigned int cmd, ALTSOUND_CMD_SRC src, bool legacyBoard, int attenuation)
+{
+	// The boards whose driver now logs the real sound commands in place of the data writes 3.6 and before
+	// logged (legacyBoard) send both: the data writes (ALTSOUND_CMD_SRC_LEGACY) for the packs made back then,
+	// the driver's commands for the newer ones (new_sound_commands = 1). Take only the pack's, as PinMAME's
+	// alt_sound_handle
+	if (g_pProcessor && (src == ALTSOUND_CMD_SRC_LEGACY ? g_newSoundCommands : (src == ALTSOUND_CMD_SRC_DRIVER && legacyBoard && !g_newSoundCommands))) {
+		ALT_DEBUG(0, "Command %04X not of the stream the pack was made for, skipped", cmd);
+		return true;
+	}
+
 	g_cmdBoard = board;
+	g_cmdSrc = src;
 	const bool result = AltSoundProcessCommand(cmd, attenuation);
 	g_cmdBoard = 0;
+	g_cmdSrc = ALTSOUND_CMD_SRC_DATA;
 	return result;
 }
 

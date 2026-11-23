@@ -59,6 +59,13 @@ typedef enum {
 	ALTSOUND_LOG_LEVEL_UNDEFINED,
 } ALTSOUND_LOG_LEVEL;
 
+// Where a sound command comes from (same values as SND_CMD_* in PinMAME's snd_cmd.h)
+typedef enum {
+	ALTSOUND_CMD_SRC_DRIVER = 0, // logged by the driver itself: one byte (or value) per real sound command
+	ALTSOUND_CMD_SRC_DATA = 1,   // a data write to the sound board, logged as in PinMAME 3.6 and before
+	ALTSOUND_CMD_SRC_LEGACY = 2, // a data write 3.6 and before logged, that the driver now replaces by its own commands
+} ALTSOUND_CMD_SRC;
+
 typedef void (*AltSoundAudioCallback)(const float* samples, size_t frameCount, uint32_t sampleRate, uint32_t channels, void* userData);
 
 ALTSOUNDAPI void AltSoundSetLogger(const string& logPath, ALTSOUND_LOG_LEVEL logLevel, bool console);
@@ -67,10 +74,13 @@ ALTSOUNDAPI bool AltSoundInit(const string& pinmamePath, const string& gameName,
 ALTSOUNDAPI void AltSoundSetHardwareGen(ALTSOUND_HARDWARE_GEN hardwareGen);
 ALTSOUNDAPI void AltSoundSetAudioCallback(AltSoundAudioCallback callback, void* userData);
 ALTSOUNDAPI bool AltSoundProcessCommand(const unsigned int cmd, int attenuation);
-// TODO: Take the command's source (PinMAME's SND_CMD_DRIVER/DATA/LEGACY, see its snd_cmd.h) and whether the board
-// sends legacy data writes (SNDBRD_DATALOG_LEGACY), e.g. in a new entry point next to this one (which then means
-// SND_CMD_DATA), so the commands can be taken as in PinMAME's AltSound, see altsound_preprocess_commands
 ALTSOUNDAPI bool AltSoundProcessBoardCommand(const unsigned int board, const unsigned int cmd, int attenuation);
+// Same as AltSoundProcessBoardCommand, with where the command comes from (src, ALTSOUND_CMD_SRC, same values as
+// SND_CMD_* in PinMAME's snd_cmd.h) and whether the board also logs its old data writes for the old packs (legacyBoard,
+// SNDBRD_DATALOG_LEGACY), as libpinmame passes them on. The commands are then taken as in PinMAME's own AltSound:
+// only the stream the pack was made for (new_sound_commands), see altsound_preprocess_commands.
+// AltSoundProcessCommand and AltSoundProcessBoardCommand take every command as ALTSOUND_CMD_SRC_DATA
+ALTSOUNDAPI bool AltSoundProcessBoardCommandSrc(const unsigned int board, const unsigned int cmd, ALTSOUND_CMD_SRC src, bool legacyBoard, int attenuation);
 ALTSOUNDAPI void AltSoundPause(bool pause);
 ALTSOUNDAPI void AltSoundShutdown();
 

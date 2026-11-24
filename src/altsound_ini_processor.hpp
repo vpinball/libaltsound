@@ -62,6 +62,9 @@ public:
 	// Return parsed skip count value
 	unsigned int getSkipCount() const;
 
+	// Return parsed duck release time
+	unsigned int getDuckReleaseMs() const;
+
 private: // functions
 
 	// helper function to parse behavior variable values
@@ -97,6 +100,7 @@ private: // data
 	bool rom_volume_control = true;
 	string altsound_format;
 	unsigned int skip_count = 0;
+	unsigned int duck_release_ms = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -130,6 +134,12 @@ inline bool AltsoundIniProcessor::usingRomVolumeControl() const {
 
 inline unsigned int AltsoundIniProcessor::getSkipCount() const {
 	return skip_count;
+}
+
+// ----------------------------------------------------------------------------
+
+inline unsigned int AltsoundIniProcessor::getDuckReleaseMs() const {
+	return duck_release_ms;
 }
 
 #endif // ALTSOUND_INI_PROCESSOR_H

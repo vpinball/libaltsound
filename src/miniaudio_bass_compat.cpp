@@ -111,10 +111,55 @@ bool MiniAudio_ChannelSetVolume(unsigned int hstream, float value)
 	}
 
 	it->second.volume = value;
-	if (it->second.sound)
+	if (it->second.sound) {
 		altsound_ma_sound_set_volume(it->second.sound, value);
+
+		// a direct volume change ends any slide in progress
+		if (it->second.fading) {
+			altsound_ma_sound_set_fade_in_milliseconds(it->second.sound, 1.0f, 1.0f, 0);
+			it->second.fading = false;
+		}
+	}
 	MiniAudio_ErrorSetCode(MA_SUCCESS);
 	return true;
+}
+
+// Raise the volume of a stream to value over time_ms, from where it is now.
+// A lower (or equal) volume is set at once, as MiniAudio_ChannelSetVolume does.
+bool MiniAudio_ChannelSlideVolume(unsigned int hstream, float value, unsigned int time_ms)
+{
+	if (hstream == MINIAUDIO_NO_STREAM) {
+		MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
+		return false;
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(g_streamMapMutex);
+		auto it = g_streamMap.find(hstream);
+		if (it == g_streamMap.end()) {
+			MiniAudio_ErrorSetCode(MA_INVALID_ARGS);
+			return false;
+		}
+
+		_internal_stream_data& data = it->second;
+		if (data.sound && time_ms > 0 && value > 0.0f) {
+			// the sound's volume is its volume times its fader
+			const float fade = data.fading ? altsound_ma_sound_get_current_fade_volume(data.sound) : 1.0f;
+			const float current = data.volume * fade;
+			if (current < value) {
+				// set the new volume, and start the fader at the ratio that
+				// keeps the output where it is, ramping up to 1
+				data.volume = value;
+				altsound_ma_sound_set_volume(data.sound, value);
+				altsound_ma_sound_set_fade_in_milliseconds(data.sound, current / value, 1.0f, time_ms);
+				data.fading = true;
+				MiniAudio_ErrorSetCode(MA_SUCCESS);
+				return true;
+			}
+		}
+	}
+
+	return MiniAudio_ChannelSetVolume(hstream, value);
 }
 
 bool MiniAudio_ChannelGetVolume(unsigned int hstream, float& value)

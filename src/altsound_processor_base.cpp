@@ -28,6 +28,7 @@ extern ALTSOUND_HARDWARE_GEN g_hardwareGen;
 float AltsoundProcessorBase::global_vol = 1.0f;
 float AltsoundProcessorBase::master_vol = 1.0f;
 std::unordered_map<unsigned int, float> AltsoundProcessorBase::stream_vol;
+unsigned int AltsoundProcessorBase::duck_release_ms = 0;
 
 // reference to sound command recording status
 extern bool rec_snd_cmds;
@@ -189,7 +190,7 @@ bool AltsoundProcessorBase::findFreeChannel(unsigned int& channel_out)
 
 // ----------------------------------------------------------------------------
 
-bool AltsoundProcessorBase::setStreamVolume(unsigned int stream_in, const float vol_in)
+bool AltsoundProcessorBase::setStreamVolume(unsigned int stream_in, const float vol_in, const unsigned int fade_ms)
 {
 	ALT_DEBUG(0, "BEGIN: AltsoundProcessorBase::setVolume()");
 	ALT_INDENT;
@@ -202,7 +203,8 @@ bool AltsoundProcessorBase::setStreamVolume(unsigned int stream_in, const float 
 	ALT_INFO(1, "Setting volume for stream %u", stream_in);
 	ALT_DEBUG(1, "SAMPLE_VOL:%.02f  GLOBAL_VOL:%.02f  MASTER_VOL:%.02f", vol_in,
 	          global_vol, master_vol);
-	const bool success = MiniAudio_ChannelSetVolume(stream_in, new_vol);
+	const bool success = fade_ms > 0 ? MiniAudio_ChannelSlideVolume(stream_in, new_vol, fade_ms)
+	                                 : MiniAudio_ChannelSetVolume(stream_in, new_vol);
 
 	if (!success) {
 		ALT_ERROR(1, "FAILED MiniAudio_ChannelSetVolume()");
